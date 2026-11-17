@@ -41,6 +41,27 @@ export const foldlab = definePreset({
       '--well': 'oklch(0.938 0.002 260)',
       '--hairline': 'oklch(0.26 0.01 260 / 0.1)',
       '--hairline-soft': 'oklch(0.26 0.01 260 / 0.06)',
+      // Depth. Surfaces sit at four heights, each with one recipe: a hairline edge, a light
+      // top edge, and a soft shadow below. well = sunk, raised = one step up, card = a panel,
+      // float = above everything.
+      '--raised-top': 'oklch(1 0 0)',
+      '--raised-bottom': 'oklch(0.972 0.0012 260)',
+      '--highlight': 'oklch(1 0 0 / 0.95)',
+      '--primary-fill-top': 'oklch(0.38 0.004 260)',
+      '--primary-fill-bottom': 'oklch(0.25 0.004 260)',
+      '--primary-edge': 'oklch(0.18 0 0)',
+      '--destructive-fill-top': 'oklch(0.6 0.19 27)',
+      '--destructive-fill-bottom': 'oklch(0.5 0.19 27)',
+      '--elev-well':
+        'inset 0 1px 2px oklch(0.26 0.01 260 / 0.09), inset 0 0 0 1px var(--hairline-soft)',
+      '--elev-raised':
+        'inset 0 1px 0 var(--highlight), 0 0 0 1px var(--hairline), 0 1px 1px oklch(0.26 0.01 260 / 0.05), 0 2px 4px -1px oklch(0.26 0.01 260 / 0.07)',
+      '--elev-card':
+        'inset 0 1px 0 var(--highlight), 0 0 0 1px var(--hairline-soft), 0 1px 2px oklch(0.26 0.01 260 / 0.05), 0 10px 28px -12px oklch(0.26 0.01 260 / 0.16)',
+      '--elev-float':
+        'inset 0 1px 0 var(--highlight), 0 0 0 1px var(--hairline), 0 2px 6px oklch(0.26 0.01 260 / 0.06), 0 28px 56px -18px oklch(0.26 0.01 260 / 0.3)',
+      '--elev-primary':
+        'inset 0 1px 0 oklch(1 0 0 / 0.22), inset 0 -1px 0 oklch(0 0 0 / 0.2), 0 0 0 1px var(--primary-edge), 0 1px 2px oklch(0 0 0 / 0.25), 0 4px 10px -4px oklch(0 0 0 / 0.35)',
       // Aliases the components already use.
       '--fl-bg': 'var(--page)',
       '--fl-surface': 'var(--card)',
@@ -644,6 +665,145 @@ export const foldlab = definePreset({
     '[data-slot="dialog-description"]': { margin: 0, color: 'var(--fl-muted)' },
     '[data-slot="dialog-backdrop"][data-closed], [data-slot="dialog-content"][data-closed]': {
       opacity: 0,
+    },
+
+    // ── Depth ── (these come last, so they win over the flat rules above)
+    'button, [data-slot="button"]': {
+      border: 0,
+      borderRadius: 'calc(var(--radius) * 1)',
+      background: 'linear-gradient(var(--raised-top), var(--raised-bottom))',
+      boxShadow: 'var(--elev-raised)',
+      fontSize: '13px',
+      fontWeight: 500,
+      transition: 'transform 160ms cubic-bezier(0.23, 1, 0.32, 1), filter 150ms, box-shadow 150ms',
+    },
+    '[data-slot="button"]:active:not(:disabled), button:active:not(:disabled)': {
+      transform: 'scale(0.97)',
+    },
+    [hit('button:hover')]: {
+      background: 'linear-gradient(var(--raised-top), var(--raised-bottom))',
+      filter: 'brightness(0.98)',
+    },
+    '[data-slot="button"][data-variant="primary"]': {
+      background: 'linear-gradient(var(--primary-fill-top), var(--primary-fill-bottom))',
+      boxShadow: 'var(--elev-primary)',
+      color: 'var(--primary-foreground)',
+    },
+    [hit('[data-slot="button"][data-variant="primary"]:hover')]: {
+      background: 'linear-gradient(var(--primary-fill-top), var(--primary-fill-bottom))',
+      filter: 'brightness(1.08)',
+    },
+    '[data-slot="button"][data-variant="destructive"]': {
+      background: 'linear-gradient(var(--destructive-fill-top), var(--destructive-fill-bottom))',
+      boxShadow: 'var(--elev-primary)',
+      color: '#fff',
+    },
+    [hit('[data-slot="button"][data-variant="destructive"]:hover')]: {
+      background: 'linear-gradient(var(--destructive-fill-top), var(--destructive-fill-bottom))',
+      filter: 'brightness(1.08)',
+    },
+    '[data-slot="button"][data-variant="ghost"]': { background: 'transparent', boxShadow: 'none' },
+    [hit('[data-slot="button"][data-variant="ghost"]:hover')]: {
+      background: 'var(--accent)',
+      filter: 'none',
+    },
+    'input, select, [data-slot="input-area"]': {
+      border: 0,
+      background: 'var(--well)',
+      boxShadow: 'var(--elev-well)',
+      borderRadius: 'var(--fl-radius)',
+      fontSize: '13px',
+    },
+    'input:focus-visible, [data-slot="input-area"]:focus-visible': {
+      outline: 0,
+      boxShadow: 'var(--elev-well), 0 0 0 3px color-mix(in oklab, var(--ring) 45%, transparent)',
+    },
+    '[data-slot="input"][data-invalid], [data-slot="field-control"][data-invalid], [data-slot="combobox-input"][data-invalid]':
+      {
+        boxShadow:
+          'var(--elev-well), 0 0 0 2px color-mix(in oklab, var(--danger) 55%, transparent)',
+      },
+    '[data-slot="layer-card"], [data-slot="accordion"], [data-slot="table"], [data-slot="banner"], [data-slot="toolbar"]':
+      {
+        border: 0,
+        boxShadow: 'var(--elev-card)',
+      },
+    '[data-slot="table"] th': { background: 'var(--surface-nested)' },
+    '[data-slot="dialog-content"], [data-slot="popover-content"], [data-slot="menu-content"], [data-slot="select-content"], [data-slot="combobox-content"]':
+      {
+        border: 0,
+        boxShadow: 'var(--elev-float)',
+      },
+    '[data-slot="tooltip-content"]': {
+      boxShadow: 'var(--elev-float)',
+      background: 'oklch(0.26 0.01 260)',
+    },
+    '[data-slot="switch"]': { background: 'var(--well)', boxShadow: 'var(--elev-well)' },
+    '[data-slot="switch"][data-checked]': {
+      background: 'linear-gradient(var(--primary-fill-top), var(--primary-fill-bottom))',
+      boxShadow: 'var(--elev-primary)',
+    },
+    '[data-slot="switch-thumb"]': {
+      background: 'linear-gradient(var(--raised-top), var(--raised-bottom))',
+      boxShadow: 'var(--elev-raised)',
+    },
+    '[data-slot="checkbox"], [data-slot="radio"]': {
+      border: 0,
+      background: 'var(--well)',
+      boxShadow: 'var(--elev-well)',
+    },
+    '[data-slot="checkbox"][data-checked], [data-slot="radio"][data-checked]': {
+      background: 'linear-gradient(var(--primary-fill-top), var(--primary-fill-bottom))',
+      boxShadow: 'var(--elev-primary)',
+    },
+    '[data-slot="slider-track"]': { background: 'var(--well)', boxShadow: 'var(--elev-well)' },
+    '[data-slot="slider-indicator"]': { background: 'var(--primary)' },
+    '[data-slot="slider-thumb"]': {
+      border: 0,
+      background: 'linear-gradient(var(--raised-top), var(--raised-bottom))',
+      boxShadow: 'var(--elev-raised)',
+    },
+    '[data-slot="tabs-tab"], [data-slot="accordion-trigger"]': {
+      boxShadow: 'none',
+      background: 'transparent',
+    },
+    '[data-slot="tabs-tab"][data-selected]': { borderBottomColor: 'var(--primary)' },
+    '[data-slot="meter-track"]': { background: 'var(--well)', boxShadow: 'var(--elev-well)' },
+    '[data-slot="meter-indicator"]': { background: 'var(--primary)' },
+    '[data-slot="badge"]': {
+      background: 'var(--muted)',
+      color: 'var(--muted-foreground)',
+      boxShadow: 'inset 0 0 0 1px var(--hairline-soft)',
+    },
+    '[data-slot="badge"][data-tone="info"]': {
+      background: 'var(--info-soft)',
+      color: 'var(--info)',
+    },
+    '[data-slot="badge"][data-tone="success"]': {
+      background: 'var(--ok-soft)',
+      color: 'var(--ok)',
+    },
+    '[data-slot="badge"][data-tone="warning"]': {
+      background: 'var(--warn-soft)',
+      color: 'var(--warn)',
+    },
+    '[data-slot="badge"][data-tone="error"]': {
+      background: 'var(--danger-soft)',
+      color: 'var(--danger)',
+    },
+    '[data-slot="banner"]': { background: 'var(--info-soft)' },
+    '[data-slot="banner"][data-tone="neutral"]': { background: 'var(--muted)' },
+    '[data-slot="banner"][data-tone="success"]': { background: 'var(--ok-soft)' },
+    '[data-slot="banner"][data-tone="warning"]': { background: 'var(--warn-soft)' },
+    '[data-slot="banner"][data-tone="error"]': { background: 'var(--danger-soft)' },
+    '[data-slot="link"]': { color: 'var(--foreground)', textDecorationColor: 'var(--hairline)' },
+    '[data-slot="combobox-item"][data-highlighted], [data-slot="menu-item"][data-highlighted], [data-slot="select-item"][data-highlighted]':
+      {
+        background: 'var(--accent)',
+      },
+    '[data-slot="combobox-item"][data-selected], [data-slot="select-item"][data-selected]': {
+      color: 'var(--foreground)',
+      fontWeight: 600,
     },
   },
 })
