@@ -14,9 +14,11 @@
 // app runs, so the anchor is the container's parent, which stays.
 //
 // Several apps can share a parent. The anchor holds one registry per app id: the
-// container's `id` when it has one, `app-<n>` otherwise. The Mount carries the
-// id it was rendered with (`PartsConfig.anchor`), and the walk-up must match it.
-// With no id, only a lone registry matches. Anything else is "no registry", and
+// container's `id` when it has one, `app-<n>` otherwise. `layer` returns that id
+// (`anchorId`), so the entry that builds the layer is also what knows it: put it
+// in Flags, then the Model, and the view passes it as `PartsConfig.anchor`. The
+// Mount carries it and the walk-up must match it. With no id, only a lone
+// registry matches. Anything else is "no registry", and
 // a Mount that finds none is loud (see `core.ts`), never silently inert.
 //
 // The walk stops at `body`. A bound element outside the anchor's subtree, for
@@ -37,7 +39,10 @@ const anchoredOn = (anchor: Element): Anchored | undefined => {
 }
 
 export class UiRegistry extends Context.Service<UiRegistry, Registry>()('foldlab/ui/Registry') {
-  /** `container` is the element the app renders into (`Runtime.makeApplication`'s `container`). */
+  /**
+   * `container` is the element the app renders into. Returns the Resource layer
+   * and the id this app's registry is recorded under.
+   */
   static readonly layer = (bindings: ReadonlyMap<string, Binding>, container: Element) => {
     // `body` is the walk's ceiling, so an app rendering into `body` anchors on it.
     const anchor =
@@ -52,7 +57,7 @@ export class UiRegistry extends Context.Service<UiRegistry, Registry>()('foldlab
     for (let n = registries.size; id === '' || registries.has(id); n++) id = `app-${n}`
     const registry = makeRegistry(bindings)
     registries.set(id, registry)
-    return Layer.effect(
+    const layer = Layer.effect(
       UiRegistry,
       Effect.acquireRelease(Effect.succeed(registry), () =>
         Effect.sync(() => {
@@ -62,6 +67,7 @@ export class UiRegistry extends Context.Service<UiRegistry, Registry>()('foldlab
         }),
       ),
     )
+    return { layer, anchorId: id }
   }
 }
 

@@ -84,7 +84,7 @@ Runtime.run(
     update: update as never,
     view,
     container: root,
-    resources: Ui.layerOf([Combobox.component], root),
+    resources: Ui.layerOf([Combobox.component], root).layer,
     slow: false,
   }),
 )

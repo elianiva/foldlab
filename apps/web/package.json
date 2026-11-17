@@ -7,7 +7,8 @@
     "dev": "pnpm codegen && vite",
     "build": "pnpm codegen && vite build",
     "typecheck": "pnpm codegen && tsrs --noEmit -p tsconfig.json && effect-tsrs diagnostics --strict --project tsconfig.json",
-    "test": "pnpm codegen && vitest run"
+    "test": "pnpm codegen && vitest run",
+    "e2e": "playwright test"
   },
   "dependencies": {
     "@foldkit/vite-plugin": "0.27.0",
@@ -23,6 +24,7 @@
   "devDependencies": {
     "@foldkit/ui": "0.170.0",
     "@pandacss/dev": "2.5.0",
+    "@playwright/test": "1.65.1",
     "@sentry/vite-plugin": "11.11.0",
     "postcss": "8.5.33"
   }

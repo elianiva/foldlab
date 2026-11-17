@@ -137,16 +137,27 @@ So `kit.layer(container)` creates the registry eagerly, when it is called, and r
 
 ### Several apps under one parent
 
-The anchor holds one registry per app id. The id is the container's `id` when it has one, and `app-<n>` otherwise, counted from what the anchor already holds, so there is no module-level counter. A taken id also gets a counter.
+The anchor holds one registry per app id: the container's `id` when it has one, and `app-<n>` otherwise, counted from what the anchor already holds, so there is no module-level counter. A taken id also gets a counter.
 
-A Mount carries the id its part was rendered with, and the walk-up must match it:
+**The layer returns the id, and the app carries it.** `kit.layer(container)` returns `{ layer, anchorId }`. The entry that builds the layer is the one thing that knows the id, so it passes it down through Flags into the Model, and the view hands it to each part as `PartsConfig.anchor`:
 
 ```ts
-const ui = { toMessage, anchor: 'checkout' } // PartsConfig; the container's id
-Dialog.parts(model.ui.settings, h, ui)
+// entry.ts
+const ui = kit.layer(container)
+Runtime.makeApplication({ Model, Flags, init, update, view, container,
+  resources: Layer.mergeAll(ApiRpc.layer, ui.layer) })
+Runtime.run(application, { flags: Effect.succeed({ anchorId: ui.anchorId }) })
+
+// main.ts
+Flags = Schema.Struct({ anchorId: Schema.String })
+init = (flags) => ({ model: Model.make({ anchorId: flags.anchorId, ... }) })
+const uiOf = (model) => ({ toMessage, anchor: model.anchorId })   // PartsConfig
+Dialog.parts(model.ui.settings, h, uiOf(model))
 ```
 
-With no `anchor`, only a lone registry matches. With two apps and no `anchor`, or one that matches nothing, the part is unbound, loudly. A counter id cannot be known to the view, so **two apps under one parent each need a container `id`** and `anchor` in their parts config. One app needs neither. `mount.test.ts` runs two apps under one parent.
+A Mount carries the id as a string arg, which DevTools can show. Nothing reads it back off the DOM, so a counter-derived id works, and two apps under one parent, or an embedded widget next to a host app, are ordinary: each entry builds its own layer and passes its own id.
+
+The lone-app default stays. With no `anchor`, a part matches only when the anchor holds exactly one registry, so a single app needs nothing. With two apps and no `anchor`, or one that matches nothing, the part is unbound, loudly. `mount.test.ts` runs four apps under one parent, two of them with the same requested id, and each part binds to its own registry.
 
 ### How it fails: unbound, never silent
 
@@ -162,3 +173,30 @@ The registry check runs before the Stream is built. Inside `Stream.callback` the
 A bound element is found through the anchor above it, so an element moved out of the anchor's subtree has no registry. `portal.test.ts` moves a bound part out of the anchor and asserts the unbound marker and the dev failure. It is the constraint for whoever writes the first portaling component. Foldkit's own `PortalToBody` Mount example (it appends the element to `document.body`) would meet it, unless the anchor is `body` itself.
 
 A portaling component has two ways out: bind before the move and keep the registry-bound Mount on the element, or give the portal target its own anchor registration. Neither is built.
+
+## Real-browser proof
+
+Story and Scene tests render vnodes. They have no focus, no layout and no `html` style, so none of the dialog's accessibility behavior is visible to them. `apps/web/e2e/dialog.pw.ts` is one Playwright spec that covers it in Chrome. It has its own command, so the unit loop stays fast:
+
+```sh
+pnpm --filter @foldlab/web e2e       # CHROME_PATH=... to use an installed Chrome
+```
+
+It proves, for the adapter's dialog:
+
+- Tab and Shift+Tab stay inside an open dialog, and `html` overflow is hidden behind it.
+- Escape plays the exit: the content stays in the tree, marked `data-closed`, partway through its fade, past the point where a pure render of `open: false` would have removed it. Then the lock and the inert siblings are released and focus returns to the trigger.
+- Closing mid-animation and then removing the dialogs from the page leaves no lock, marker or inert element behind.
+- A nested confirm closes alone. The parent stays open and keeps the lock, focus returns to the confirm's trigger inside it, and closing the parent releases everything and focuses its trigger.
+- No part on the page failed to bind (`data-foldlab-unbound` count is zero).
+
+I checked that it can fail. With `renderState` emptied, so that the exit is not carried through the Model, two of the four tests fail.
+
+What it cannot prove:
+
+- **Screen reader behavior.** It checks focus and attributes, not what assistive technology announces. An accessibility claim beyond focus management needs a manual pass with a screen reader.
+- **Other browsers.** One Chrome version. Safari's focus and inert behavior differ.
+- **Other components.** Only the dialog. Combobox and accordion keyboard behavior was checked by hand, not by a spec.
+- **The lock's source.** ui-sdk core writes the lock, not the adapter. The spec proves the lock holds and releases through the adapter, not that the adapter's `lockSlot` marker is correct. Removing `lockSlot` leaves the spec green, and `bind.test.ts` covers the marker.
+- **Mixing providers.** The `@foldkit/ui` stacking case is in the docs and the dev warning, not in the spec.
+- **Timing.** The exit assertions use a 60 ms wait against a 150 ms fade. A very slow machine could flake.

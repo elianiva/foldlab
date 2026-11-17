@@ -10,3 +10,5 @@ coverage/
 .amp/portals/*
 .DS_Store
 styled-system
+test-results/
+playwright-report/

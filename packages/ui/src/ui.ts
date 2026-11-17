@@ -55,7 +55,7 @@ export const define = <const E extends Entries>(entries: E) => {
   return {
     Model,
     update,
-    /** `container` is the element the app renders into. */
+    /** `container` is the element the app renders into. Returns `{ layer, anchorId }`. */
     layer: (container: Element) => layerOf(Object.values(entries), container),
   }
 }

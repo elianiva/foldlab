@@ -16,7 +16,7 @@ const sync = Command.resolveAll([syncUiState, UiMessage.CompletedUiSync()])
 test('name: sync rule fails first, then the async check decides', () => {
   story(
     update,
-    given(init().model),
+    given(init({ anchorId: '' }).model),
     message(Message.ChangedName({ value: 'ab' })),
     model((m) => expect(m.name._tag).toBe('Invalid')),
     message(Message.ChangedName({ value: 'panda' })),
@@ -31,7 +31,7 @@ test('name: sync rule fails first, then the async check decides', () => {
 })
 
 test('name: a late answer for an older value is ignored', () => {
-  const typed = update(init().model, Message.ChangedName({ value: 'fresh' })).model
+  const typed = update(init({ anchorId: '' }).model, Message.ChangedName({ value: 'fresh' })).model
   const late = update(typed, Message.GotNameAvailability({ name: 'panda', taken: true })).model
   expect(late.name._tag).toBe('Validating')
 })
@@ -39,7 +39,7 @@ test('name: a late answer for an older value is ignored', () => {
 test('cross-field: changing start re-checks a touched end', () => {
   story(
     update,
-    given(init().model),
+    given(init({ anchorId: '' }).model),
     message(Message.ChangedStart({ value: '2026-05-10' })),
     message(Message.ChangedEnd({ value: '2026-05-12' })),
     model((m) => expect(m.schedule.end._tag).toBe('Valid')),
@@ -54,7 +54,7 @@ const pickMany = (value: ReadonlyArray<string>) => ({ value, query: '', open: tr
 test('ui-sdk snapshots flow into field validation, and every one is confirmed by a sync', () => {
   story(
     update,
-    given(init().model),
+    given(init({ anchorId: '' }).model),
     message(ui(pick('ada', 'Ada Lovelace'), 'assignee')),
     sync,
     model((m) => {
@@ -73,7 +73,10 @@ test('ui-sdk snapshots flow into field validation, and every one is confirmed by
 })
 
 test('a snapshot is idempotent: applying it twice equals applying it once', () => {
-  const once = update(init().model, ui(pick('ada', 'Ada Lovelace'), 'assignee')).model
+  const once = update(
+    init({ anchorId: '' }).model,
+    ui(pick('ada', 'Ada Lovelace'), 'assignee'),
+  ).model
   const twice = update(once, ui(pick('ada', 'Ada Lovelace'), 'assignee')).model
   expect(twice).toEqual(once)
 })
@@ -94,7 +97,7 @@ test('a snapshot with no query resets a single combobox to its chosen label', ()
 test('typing is a Foldkit Message: it sets the query and opens the list', () => {
   story(
     update,
-    given(init().model),
+    given(init({ anchorId: '' }).model),
     message(
       Message.GotUiMessage({
         message: UiMessage.TypedUiText({ component: 'combobox', key: 'assignee', value: 'al' }),
@@ -113,14 +116,14 @@ test('the app refuses a change by ignoring it: the sync Command carries the old 
     msg._tag === 'GotUiMessage' && msg.message._tag === 'ChangedUiState'
       ? update(model, Message.GotUiMessage({ message: UiMessage.CompletedUiSync() }))
       : update(model, msg)
-  const result = refusing(init().model, ui(pick('ada', 'Ada Lovelace'), 'assignee'))
+  const result = refusing(init({ anchorId: '' }).model, ui(pick('ada', 'Ada Lovelace'), 'assignee'))
   expect(result.model.ui.assigneeBox.value).toEqual([])
 })
 
 test('submit validates everything at once', () => {
   story(
     update,
-    given(init().model),
+    given(init({ anchorId: '' }).model),
     message(Message.ClickedSubmit()),
     model((m) => {
       expect(m.submitted).toBe(false)

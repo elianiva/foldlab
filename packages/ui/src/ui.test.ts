@@ -56,7 +56,7 @@ test('the registry is a Resource: Commands reach it, and closing the scope relea
   const registry = await Effect.runPromise(
     Effect.scoped(
       Effect.gen(function* () {
-        const context = yield* Layer.build(Ui.layerOf([Accordion.component], container))
+        const context = yield* Layer.build(Ui.layerOf([Accordion.component], container).layer)
         const found = Context.get(context, UiRegistry)
         // A Mount reaches the same registry through the container.
         expect(findRegistry(container)).toEqual(Option.some(found))

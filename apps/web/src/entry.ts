@@ -1,6 +1,6 @@
-import { Layer } from 'effect'
+import { Effect, Layer } from 'effect'
 import { Runtime } from 'foldkit'
-import { init, kit, Message, Model, update, view } from './app/main.ts'
+import { Flags, init, kit, Message, Model, update, view } from './app/main.ts'
 import { ApiRpc } from './platform/rpc.ts'
 import { reportCrash, reportSlow, startSentry, tracerLayer } from './platform/sentry.ts'
 import './styles.css'
@@ -10,16 +10,20 @@ startSentry()
 
 const container = document.getElementById('root') ?? document.body
 
+// The layer returns the id its registry is recorded under; Flags carry it to init and the Model.
+const ui = kit.layer(container)
+
 const application = Runtime.makeApplication({
   Model,
+  Flags,
   init,
   update,
   view,
-  resources: Layer.mergeAll(ApiRpc.layer, tracerLayer, kit.layer(container)),
+  resources: Layer.mergeAll(ApiRpc.layer, tracerLayer, ui.layer),
   container,
   crash: { report: reportCrash },
   slow: { show: 'Always', onSlow: reportSlow },
   devTools: { Message },
 })
 
-Runtime.run(application)
+Runtime.run(application, { flags: Effect.succeed({ anchorId: ui.anchorId }) })

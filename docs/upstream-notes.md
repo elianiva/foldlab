@@ -49,30 +49,28 @@ Not filed. Title: **A supported entry point for framework adapters, and option t
 
 ## Draft issue for Foldkit: Resources are not reachable from a Mount
 
-Not filed. Foldkit 0.167.0 (also checked: 0.170.0 declarations).
+Not filed. Foldkit 0.167.0, and the 0.170.0 declarations.
 
-Title: **Mount docs say app Resources are available in `execute`; they are not**
+Title: **The Mount guide says app Resources are available in `execute`; the shipped declarations say they are not**
 
+> The finding is a split between the docs and the shipped declarations.
+>
 > The Mount guide, under "Per-Instance Args", says:
 >
 > > Args are only per-instance inputs. Module constants stay in lexical scope, app-wide services come from Foldkit `Resources`, Model-owned handles come from `ManagedResources`, and Effect services remain available through `yield*` inside `execute`.
 >
 > (https://foldkit.dev/core/mount)
 >
-> That reads as: an app `Resource` passed to `Runtime.makeApplication({ resources })` can be `yield*`-ed inside a Mount's `execute`. I could not make that work, and the types agree with what I saw.
->
-> **What I observed**
+> The declarations that ship in `foldkit@0.167.0` (and `0.170.0`) do not contain that sentence, and what they say points the other way. I did not read a mechanism out of the source. I observed three things.
 >
 > 1. **Types.** `Mount.define`'s `execute` returns `Effect<Message, never, Scope.Scope>`, and `Mount.defineStream`'s returns `Stream<Message, never, never>`. A Resource has no place in `R`.
-> 2. **Runtime context.** I read `Effect.context()` inside a `defineStream` Mount, in the browser, in dev. Its keys: `effect/Scheduler`, `effect/Layer/CurrentMemoMap`, `@foldkit/DialogRuntime`, `@foldkit/RenderCommit`, `effect/Scope`, `@foldkit/MountRuntime`, `@foldkit/MountTracker`, `@foldkit/Dispatch`. None of the app's Resources, though the same Resource works from a Command. `html/index.js` runs Mounts with `Effect.runForkWith(capturedContext)`; I did not trace why that context lacks the Resources.
-> 3. **Lazy layers.** A Resource layer is built when the first Command that needs it runs. I wrapped the layer in `Layer.effect(Tag, Effect.acquireRelease(...))` and logged in the acquire. It never ran before the first render's Mounts, and did not run at all until a Command used the service.
+> 2. **Runtime context.** I read `Effect.context()` inside a `defineStream` Mount, in the browser, in dev. Its keys: `effect/Scheduler`, `effect/Layer/CurrentMemoMap`, `@foldkit/DialogRuntime`, `@foldkit/RenderCommit`, `effect/Scope`, `@foldkit/MountRuntime`, `@foldkit/MountTracker`, `@foldkit/Dispatch`. None of the app's Resources, though the same Resource is reachable from a Command.
+> 3. **Lazy layers.** A Resource layer is built when the first Command that needs it runs. I wrapped the layer in `Layer.effect(Tag, Effect.acquireRelease(...))` and logged in the acquire. It did not run before the first render's Mounts, and not at all until a Command used the service.
 >
-> **What I would like**
+> I have not traced why the Mount's context lacks the Resources.
 >
-> Either Resources reachable from Mount contexts, with the types to match, or docs that say plainly that they are not, plus the intended pattern for element-scoped work that needs an app service. Today the only routes I found are a Message to `update` and a Command (the Mount has no handle on the service), or a module-level singleton, which defeats the point of a Resource.
+> **What I would like.** Either Resources reachable from Mount contexts, with types to match, or docs that say plainly they are not, plus the intended pattern for element-scoped work that needs an app service. The routes I found are a Message to `update` and a Command (the Mount has no handle on the service), or a module-level singleton, which defeats the point of a Resource.
 >
-> The use case: a UI library whose Mount binds a live behavior instance to an element. The instances live in an app-scoped registry, and the Commands that sync the Model into them need the same registry the Mounts use.
+> **The use case.** A UI library whose Mount binds a live behavior instance to an element. The instances live in an app-scoped registry, and the Commands that sync the Model into them need the same registry the Mounts use.
 >
-> **Separate observation: the container node is replaced while the app runs**
->
-> With `Runtime.makeApplication({ container })`, the container element does not stay in the document. After the first render, `document.getElementById('root')` is `null` and the view's root element sits in its place. (`renderer.js` patches the container out and restores it on teardown.) Anything attached to the container node, such as an expando property or an observer, is gone by the time the first Mount runs. The `container` option docs do not mention it. Worth a sentence, since anyone who reaches for the container as a stable anchor will lose it. What stays is the container's parent.
+> **Separate observation: the container node is replaced while the app runs.** With `Runtime.makeApplication({ container })`, after the first render `document.getElementById('root')` is `null` and the view's root element sits in its place. Anything attached to the container node, such as an expando property or an observer, is gone by the time the first Mount runs. The `container` option docs do not mention it. The container's parent is what stays.

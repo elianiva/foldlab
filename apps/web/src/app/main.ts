@@ -11,6 +11,7 @@ import {
   Message as UiMessage,
   Ui,
   UiRegistry,
+  type PartsConfig,
   stamp,
 } from '@foldlab/ui'
 import { css } from '../../styled-system/css'
@@ -29,7 +30,12 @@ export const kit = Ui.define({
 const Text = FieldValidation.Field(Schema.String)
 const Strings = FieldValidation.Field(Schema.Array(Schema.String))
 
+// The id `kit.layer(container)` returned. The entry puts it in Flags, so no view guesses it.
+export const Flags = Schema.Struct({ anchorId: Schema.String })
+export type Flags = typeof Flags.Type
+
 export const Model = Schema.Struct({
+  anchorId: Schema.String,
   name: Text,
   owner: Schema.Struct({ email: Text, assignee: Text }),
   schedule: Schema.Struct({ start: Text, end: Text }),
@@ -110,8 +116,9 @@ export const CheckName = Command.define('CheckName', {
 
 // ── Init / update ───────────────────────────────────────────────────────────
 
-export const init = () => ({
+export const init = (flags: Flags) => ({
   model: Model.make({
+    anchorId: flags.anchorId,
     name: FieldValidation.NotValidated({ value: '' }),
     owner: {
       email: FieldValidation.NotValidated({ value: '' }),
@@ -292,7 +299,10 @@ const group = css({
   padding: '1rem',
 })
 
-const ui = { toMessage: (message: UiMessage) => Message.GotUiMessage({ message }) }
+const uiOf = (model: Model): PartsConfig<Message> => ({
+  toMessage: (message: UiMessage) => Message.GotUiMessage({ message }),
+  anchor: model.anchorId,
+})
 
 const status = (h: HtmlBuilder<Message>, text: string): Html =>
   h.p([h.Role('status'), h.AriaLive('polite')], [text])
@@ -307,7 +317,11 @@ type TextFieldConfig = Readonly<{
   toMessage: (value: string) => Message
 }>
 
-const textField = (h: HtmlBuilder<Message>, config: TextFieldConfig): Html => {
+const textField = (
+  h: HtmlBuilder<Message>,
+  ui: PartsConfig<Message>,
+  config: TextFieldConfig,
+): Html => {
   const field = Field.parts(
     Field.init({ key: config.id, invalid: FieldValidation.isInvalid(config.field) }),
     h,
@@ -344,7 +358,11 @@ type ComboFieldConfig = Readonly<{
   placeholder: string
 }>
 
-const comboField = (h: HtmlBuilder<Message>, config: ComboFieldConfig): Html => {
+const comboField = (
+  h: HtmlBuilder<Message>,
+  ui: PartsConfig<Message>,
+  config: ComboFieldConfig,
+): Html => {
   const field = Field.parts(
     Field.init({ key: config.id, invalid: FieldValidation.isInvalid(config.field) }),
     h,
@@ -409,6 +427,7 @@ const comboField = (h: HtmlBuilder<Message>, config: ComboFieldConfig): Html => 
 }
 
 const helpSection = (h: HtmlBuilder<Message>, model: Model): Html => {
+  const ui = uiOf(model)
   const accordion = Accordion.parts(model.ui.help, h, ui)
   const item = (value: string, title: string, body: string) =>
     accordion.item(
@@ -434,6 +453,7 @@ const helpSection = (h: HtmlBuilder<Message>, model: Model): Html => {
 }
 
 const dialogs = (h: HtmlBuilder<Message>, model: Model): Html => {
+  const ui = uiOf(model)
   const d = Dialog.parts(model.ui.settings, h, ui)
   const c = Dialog.parts(model.ui.confirm, h, ui)
   if (!model.dialogsVisible) {
@@ -505,67 +525,70 @@ const dialogs = (h: HtmlBuilder<Message>, model: Model): Html => {
   )
 }
 
-export const view = (model: Model, h: HtmlBuilder<Message>): Document => ({
-  title: 'foldlab',
-  body: h.main(
-    [h.Class(stack)],
-    [
-      h.h1([], ['New project']),
-      textField(h, {
-        id: 'name',
-        label: 'Project name',
-        description: 'Lowercase, unique across projects.',
-        field: model.name,
-        required: FieldValidation.isRequired(rules.name),
-        toMessage: (value) => Message.ChangedName({ value }),
-      }),
-      textField(h, {
-        id: 'owner-email',
-        label: 'Owner email',
-        description: 'Where project notices go.',
-        field: model.owner.email,
-        required: true,
-        type: 'email',
-        toMessage: (value) => Message.ChangedEmail({ value }),
-      }),
-      comboField(h, {
-        id: 'owner-assignee',
-        label: 'Assignee',
-        description: 'Who triages new issues.',
-        box: model.ui.assigneeBox,
-        field: model.owner.assignee,
-        placeholder: 'Search people',
-      }),
-      textField(h, {
-        id: 'schedule-start',
-        label: 'Start date',
-        description: 'First day of work.',
-        field: model.schedule.start,
-        required: true,
-        type: 'date',
-        toMessage: (value) => Message.ChangedStart({ value }),
-      }),
-      textField(h, {
-        id: 'schedule-end',
-        label: 'End date',
-        description: 'Must not be before the start date.',
-        field: model.schedule.end,
-        required: true,
-        type: 'date',
-        toMessage: (value) => Message.ChangedEnd({ value }),
-      }),
-      comboField(h, {
-        id: 'channels',
-        label: 'Notification channels',
-        description: 'Pick one or more.',
-        box: model.ui.channelBox,
-        field: model.channels,
-        placeholder: 'Search channels',
-      }),
-      h.button([h.Type('button'), h.OnClick(Message.ClickedSubmit())], ['Create project']),
-      model.submitted ? status(h, 'Project created.') : null,
-      helpSection(h, model),
-      dialogs(h, model),
-    ],
-  ),
-})
+export const view = (model: Model, h: HtmlBuilder<Message>): Document => {
+  const ui = uiOf(model)
+  return {
+    title: 'foldlab',
+    body: h.main(
+      [h.Class(stack)],
+      [
+        h.h1([], ['New project']),
+        textField(h, ui, {
+          id: 'name',
+          label: 'Project name',
+          description: 'Lowercase, unique across projects.',
+          field: model.name,
+          required: FieldValidation.isRequired(rules.name),
+          toMessage: (value) => Message.ChangedName({ value }),
+        }),
+        textField(h, ui, {
+          id: 'owner-email',
+          label: 'Owner email',
+          description: 'Where project notices go.',
+          field: model.owner.email,
+          required: true,
+          type: 'email',
+          toMessage: (value) => Message.ChangedEmail({ value }),
+        }),
+        comboField(h, ui, {
+          id: 'owner-assignee',
+          label: 'Assignee',
+          description: 'Who triages new issues.',
+          box: model.ui.assigneeBox,
+          field: model.owner.assignee,
+          placeholder: 'Search people',
+        }),
+        textField(h, ui, {
+          id: 'schedule-start',
+          label: 'Start date',
+          description: 'First day of work.',
+          field: model.schedule.start,
+          required: true,
+          type: 'date',
+          toMessage: (value) => Message.ChangedStart({ value }),
+        }),
+        textField(h, ui, {
+          id: 'schedule-end',
+          label: 'End date',
+          description: 'Must not be before the start date.',
+          field: model.schedule.end,
+          required: true,
+          type: 'date',
+          toMessage: (value) => Message.ChangedEnd({ value }),
+        }),
+        comboField(h, ui, {
+          id: 'channels',
+          label: 'Notification channels',
+          description: 'Pick one or more.',
+          box: model.ui.channelBox,
+          field: model.channels,
+          placeholder: 'Search channels',
+        }),
+        h.button([h.Type('button'), h.OnClick(Message.ClickedSubmit())], ['Create project']),
+        model.submitted ? status(h, 'Project created.') : null,
+        helpSection(h, model),
+        dialogs(h, model),
+      ],
+    ),
+  }
+}

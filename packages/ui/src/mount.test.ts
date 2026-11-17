@@ -95,22 +95,24 @@ test('with two apps, a part with no anchor id, or the wrong one, is unbound loud
   }
 })
 
-test('a container id that is already taken, or absent, gets a counter id', () => {
+test('the layer returns the anchor id, so a counter id is usable', async () => {
   const parent = document.body.appendChild(document.createElement('div'))
   const make = (id: string) => {
     const container = parent.appendChild(document.createElement('div'))
     container.id = id
-    Ui.layerOf([Accordion.component], container)
-    return container
+    const { anchorId } = Ui.layerOf([Accordion.component], container)
+    const root = parent.appendChild(document.createElement('main'))
+    return { anchorId, trigger: root.appendChild(document.createElement('button')) }
   }
-  const first = make('')
-  const second = make('')
-  const third = make('x')
-  const fourth = make('x')
-  expect(findRegistry(first, 'app-0')._tag).toBe('Some')
-  expect(findRegistry(second, 'app-1')._tag).toBe('Some')
-  expect(findRegistry(third, 'x')._tag).toBe('Some')
-  expect(findRegistry(fourth, 'app-3')._tag).toBe('Some')
+  const apps = [make(''), make(''), make('x'), make('x')]
+  expect(apps.map((app) => app.anchorId)).toEqual(['app-0', 'app-1', 'x', 'app-3'])
+  // Each part, rendered with the id its layer returned, binds to its own registry.
+  const fibers = apps.map((app) => Effect.runFork(part(app.trigger, app.anchorId)))
+  await tick()
+  for (const app of apps) expect(app.trigger.hasAttribute(UNBOUND_ATTRIBUTE)).toBe(false)
+  const registries = apps.map((app) => findRegistry(app.trigger, app.anchorId))
+  expect(new Set(registries.map((r) => (r._tag === 'Some' ? r.value : r))).size).toBe(4)
+  for (const fiber of fibers) await Effect.runPromise(Fiber.interrupt(fiber))
 })
 
 test('an app rendering into body anchors on body, the ceiling of the walk', async () => {
