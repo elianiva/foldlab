@@ -17,6 +17,7 @@ import {
   Dialog,
   Drawer,
   Field,
+  FileInput,
   HoverCard,
   Listbox,
   Menu,
@@ -89,6 +90,7 @@ export const kit = Ui.define({
   tgBold: Toggle.component,
   tgItalic: Toggle.component,
   tgUnderline: Toggle.component,
+  files: FileInput.component,
 })
 
 // ── Model ───────────────────────────────────────────────────────────────────
@@ -109,6 +111,10 @@ export const Model = Schema.Struct({
     pagination: Schema.Finite,
     revealed: Schema.Boolean,
     copied: Schema.String,
+    scroll: Schema.Finite,
+    order: Schema.Array(Schema.String),
+    dragging: Schema.String,
+    step: Schema.Finite,
   }),
   name: Text,
   owner: Schema.Struct({ email: Text, assignee: Text }),
@@ -182,6 +188,10 @@ export const Message = defineMessageUnion({
   ClickedCopy: { text: Schema.String },
   CompletedCopy: { text: Schema.String },
   ChangedDemoPage: { value: Schema.Finite },
+  ScrolledList: { top: Schema.Finite },
+  StartedDrag: { id: Schema.String },
+  DroppedOn: { id: Schema.String },
+  ChosenStep: { value: Schema.Finite },
   ClickedToast: { type: Schema.String },
   GotToast: { item: Toast.ToastItem },
   ChangedToasts: { ids: Schema.Array(Schema.String) },
@@ -228,7 +238,16 @@ export const init = (flags: Flags) => ({
   model: Model.make({
     anchorId: flags.anchorId,
     page: flags.page,
-    demo: { loading: false, pagination: 1, revealed: false, copied: '' },
+    demo: {
+      loading: false,
+      pagination: 1,
+      revealed: false,
+      copied: '',
+      scroll: 0,
+      order: ['Design', 'Build', 'Review', 'Ship'],
+      dragging: '',
+      step: 0,
+    },
     name: FieldValidation.NotValidated({ value: '' }),
     owner: {
       email: FieldValidation.NotValidated({ value: '' }),
@@ -290,6 +309,7 @@ export const init = (flags: Flags) => ({
       tgBold: Toggle.init({ key: 'tg-bold' }),
       tgItalic: Toggle.init({ key: 'tg-italic' }),
       tgUnderline: Toggle.init({ key: 'tg-underline' }),
+      files: FileInput.init({ key: 'files' }),
       region: Select.init({
         key: 'region',
         items: [
@@ -443,6 +463,19 @@ export const update = (model: Model, message: Message): Update.Return<Model, Mes
     ToggledReveal: () => ({
       model: { ...model, demo: { ...model.demo, revealed: !model.demo.revealed } },
     }),
+    ScrolledList: ({ top }) => ({ model: { ...model, demo: { ...model.demo, scroll: top } } }),
+    StartedDrag: ({ id }) => ({ model: { ...model, demo: { ...model.demo, dragging: id } } }),
+    DroppedOn: ({ id }) => {
+      const from = model.demo.order.indexOf(model.demo.dragging)
+      const to = model.demo.order.indexOf(id)
+      if (from < 0 || to < 0 || from === to) {
+        return { model: { ...model, demo: { ...model.demo, dragging: '' } } }
+      }
+      const order = [...model.demo.order]
+      order.splice(to, 0, ...order.splice(from, 1))
+      return { model: { ...model, demo: { ...model.demo, order, dragging: '' } } }
+    },
+    ChosenStep: ({ value }) => ({ model: { ...model, demo: { ...model.demo, step: value } } }),
     ChangedDemoPage: ({ value }) => ({
       model: { ...model, demo: { ...model.demo, pagination: value } },
     }),

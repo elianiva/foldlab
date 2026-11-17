@@ -7,6 +7,7 @@ import {
   Menubar,
   Toast,
   Drawer,
+  FileInput,
   HoverCard,
   Listbox,
   NavigationMenu,
@@ -450,6 +451,37 @@ export const kitPages: ReadonlyArray<Page> = [
             ),
           ],
           't.region({}, [], [t.list({}, [], items.map(item => t.root({ id: item.id }, [], [...])))])',
+        ),
+      ]
+    },
+  },
+  {
+    id: 'file-drop',
+    title: 'File Drop',
+    description:
+      'Drop files on the zone or press the button. Files stay in the instance; the Model keeps names and sizes.',
+    render: ({ h, model, ui }) => {
+      const f = FileInput.parts(model.ui.files, h, ui)
+      return [
+        sectionOf(
+          h,
+          'Dropzone',
+          [
+            f.root(
+              {},
+              [],
+              [
+                f.input({}, [], []),
+                f.dropzone({}, [], ['Drop files here, or ', f.trigger({}, [], ['browse'])]),
+              ],
+            ),
+            h.ul(
+              [],
+              model.ui.files.files.map((file) => h.li([], [`${file.name} (${file.size} bytes)`])),
+            ),
+          ],
+          'f.root({}, [], [f.input({}, [], []), f.dropzone({}, [], [f.trigger({}, [], ["browse"])])])',
+          stacked,
         ),
       ]
     },
