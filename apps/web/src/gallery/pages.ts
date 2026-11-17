@@ -1,4 +1,5 @@
 import { staticPages } from './static-pages.ts'
+import { extraPages } from './extra-pages.ts'
 import { morePages } from './more-pages.ts'
 import { popupPages } from './popup-pages.ts'
 import { uiPages } from './ui-pages.ts'
@@ -10,6 +11,7 @@ export const galleryPages: ReadonlyArray<Page> = [
   ...uiPages,
   ...popupPages,
   ...morePages,
+  ...extraPages,
 ].toSorted((a, b) => a.title.localeCompare(b.title))
 
 export const FORM_PAGE = 'form'

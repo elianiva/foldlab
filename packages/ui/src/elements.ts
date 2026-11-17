@@ -378,3 +378,148 @@ export const resourceList = <M>(
       ),
     ),
   )
+
+export const alert = <M>(
+  h: HtmlBuilder<M>,
+  props: Readonly<{ tone?: 'neutral' | 'error'; title: string }>,
+  children: Children,
+): Html =>
+  h.div(
+    [...data(h, 'alert', { tone: props.tone ?? 'neutral' }), h.Role('alert')],
+    [h.p(data(h, 'alert-title'), [props.title]), h.div(data(h, 'alert-body'), children)],
+  )
+
+export const aspectRatio = <M>(h: HtmlBuilder<M>, ratio: string, children: Children): Html =>
+  h.div([...data(h, 'aspect-ratio'), h.Style({ aspectRatio: ratio })], children)
+
+export const card = <M>(
+  h: HtmlBuilder<M>,
+  props: Readonly<{ title: string; description?: string }>,
+  children: Children,
+  footer: Children = [],
+): Html =>
+  h.section(data(h, 'card'), [
+    h.header(data(h, 'card-header'), [
+      h.h3(data(h, 'card-title'), [props.title]),
+      ...(props.description === undefined
+        ? []
+        : [h.p(data(h, 'card-description'), [props.description])]),
+    ]),
+    h.div(data(h, 'card-content'), children),
+    ...(footer.length === 0 ? [] : [h.footer(data(h, 'card-footer'), footer)]),
+  ])
+
+export const kbd = <M>(h: HtmlBuilder<M>, keys: string): Html => h.span(data(h, 'kbd'), [keys])
+
+export const spinner = <M>(h: HtmlBuilder<M>, size: 'sm' | 'base' | 'lg' = 'base'): Html =>
+  loader(h, size)
+
+export const avatar = <M>(
+  h: HtmlBuilder<M>,
+  props: Readonly<{ name: string; size?: 'sm' | 'base' | 'lg' }>,
+): Html =>
+  h.span(
+    [...data(h, 'avatar', { size: props.size ?? 'base' }), h.Role('img'), h.AriaLabel(props.name)],
+    [
+      props.name
+        .split(/\s+/)
+        .map((word) => word.charAt(0))
+        .slice(0, 2)
+        .join('')
+        .toUpperCase(),
+    ],
+  )
+
+export const item = <M>(
+  h: HtmlBuilder<M>,
+  props: Readonly<{ title: string; description?: string }>,
+  leading: Html = null,
+  trailing: Html = null,
+): Html =>
+  h.div(data(h, 'item'), [
+    leading,
+    h.div(data(h, 'item-body'), [
+      h.p(data(h, 'item-title'), [props.title]),
+      ...(props.description === undefined
+        ? []
+        : [h.p(data(h, 'item-description'), [props.description])]),
+    ]),
+    trailing,
+  ])
+
+export const bubble = <M>(
+  h: HtmlBuilder<M>,
+  props: Readonly<{ from: 'me' | 'them' }>,
+  children: Children,
+): Html => h.div(data(h, 'bubble', { from: props.from }), children)
+
+export const marker = <M>(h: HtmlBuilder<M>, text: string): Html =>
+  h.div(data(h, 'marker'), [h.span([], [text])])
+
+export const attachment = <M>(
+  h: HtmlBuilder<M>,
+  props: Readonly<{ name: string; size: string }>,
+  remove: Html = null,
+): Html =>
+  h.div(data(h, 'attachment'), [
+    h.span(data(h, 'attachment-icon'), ['\u2398']),
+    h.div(
+      [],
+      [h.p(data(h, 'item-title'), [props.name]), h.p(data(h, 'item-description'), [props.size])],
+    ),
+    remove,
+  ])
+
+export const fieldset = <M>(h: HtmlBuilder<M>, legend: string, children: Children): Html =>
+  h.fieldset(data(h, 'fieldset'), [h.legend([], [legend]), ...children])
+
+export const textarea = inputArea
+
+export const nativeSelect = <M>(
+  h: HtmlBuilder<M>,
+  options: ReadonlyArray<Readonly<{ value: string; label: string }>>,
+  attributes: Attrs<M>,
+): Html =>
+  h.select(
+    [...data(h, 'native-select'), ...attributes],
+    options.map((option) => h.option([h.Value(option.value)], [option.label])),
+  )
+
+export const nav = <M>(
+  h: HtmlBuilder<M>,
+  items: ReadonlyArray<Readonly<{ label: string; href: string; current?: boolean }>>,
+): Html =>
+  h.nav(
+    [...data(h, 'nav'), h.AriaLabel('Main')],
+    items.map((entry) =>
+      h.a(
+        [h.Href(entry.href), ...(entry.current === true ? [h.AriaCurrent('page')] : [])],
+        [entry.label],
+      ),
+    ),
+  )
+
+export const progress = <M>(
+  h: HtmlBuilder<M>,
+  props: Readonly<{ value: number; label: string }>,
+): Html =>
+  h.div(
+    [
+      ...data(h, 'progress'),
+      h.Role('progressbar'),
+      h.AriaLabel(props.label),
+      h.AriaValuemin(0),
+      h.AriaValuemax(100),
+      h.AriaValuenow(props.value),
+    ],
+    [h.div([...data(h, 'meter-indicator'), h.Style({ width: `${props.value}%` })], [])],
+  )
+
+export const separator = <M>(h: HtmlBuilder<M>, vertical = false): Html =>
+  h.div([...data(h, 'separator', { vertical }), h.Role('separator')], [])
+
+export const scrollArea = <M>(h: HtmlBuilder<M>, height: string, children: Children): Html =>
+  h.div([...data(h, 'scroll-area'), h.Style({ maxHeight: height }), h.Tabindex(0)], children)
+
+export const direction = <M>(h: HtmlBuilder<M>, dir: 'ltr' | 'rtl', children: Children): Html =>
+  h.div([...data(h, 'direction'), h.Attribute('dir', dir)], children)
