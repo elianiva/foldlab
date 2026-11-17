@@ -2,6 +2,7 @@ import { staticPages } from './static-pages.ts'
 import { extraPages } from './extra-pages.ts'
 import { kitPages } from './kit-pages.ts'
 import { morePages } from './more-pages.ts'
+import { nativePages } from './native-pages.ts'
 import { popupPages } from './popup-pages.ts'
 import { uiPages } from './ui-pages.ts'
 import type { Page } from './types.ts'
@@ -13,6 +14,7 @@ export const galleryPages: ReadonlyArray<Page> = [
   ...popupPages,
   ...morePages,
   ...kitPages,
+  ...nativePages,
   ...extraPages,
 ].toSorted((a, b) => a.title.localeCompare(b.title))
 
