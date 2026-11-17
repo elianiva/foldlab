@@ -39,7 +39,19 @@ export type Message = typeof Message.Type
 
 // ── Component description ───────────────────────────────────────────────────
 
-export type Tag = 'div' | 'button' | 'input' | 'label' | 'span' | 'ul' | 'li' | 'p' | 'h2' | 'h3'
+export type Tag =
+  | 'div'
+  | 'button'
+  | 'input'
+  | 'img'
+  | 'a'
+  | 'label'
+  | 'span'
+  | 'ul'
+  | 'li'
+  | 'p'
+  | 'h2'
+  | 'h3'
 
 export type Component<State, Slot extends string> = Readonly<{
   /** `data-slot` prefix and registry name. */
@@ -324,7 +336,7 @@ export const makeParts =
           ...mount,
         ]
         const tag = component.tags[slot]
-        return tag === 'input' ? h.input(all) : h[tag](all, children)
+        return tag === 'input' ? h.input(all) : tag === 'img' ? h.img(all) : h[tag](all, children)
       }
     const attributes = (slot: Slot, props: PartProps = {}, only?: ReadonlyArray<string>) => {
       const own = rendered.attrs(slot, props)
