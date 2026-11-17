@@ -279,6 +279,131 @@ export const foldlab = definePreset({
       borderRadius: '999px',
     },
 
+    // ── Controlled components ──
+    '[data-slot="checkbox"], [data-slot="radio"]': {
+      display: 'inline-flex',
+      alignItems: 'center',
+      justifyContent: 'center',
+      width: '1.15rem',
+      height: '1.15rem',
+      padding: 0,
+      border: '1.5px solid #9aa3b2',
+      background: 'var(--fl-surface)',
+      color: '#fff',
+      transition: 'background 120ms, border-color 120ms',
+    },
+    '[data-slot="checkbox"]': { borderRadius: '4px' },
+    '[data-slot="radio"]': { borderRadius: '50%' },
+    '[data-slot="checkbox"][data-checked], [data-slot="radio"][data-checked]': {
+      background: 'var(--fl-accent)',
+      borderColor: 'var(--fl-accent)',
+    },
+    '[data-slot="checkbox"][data-checked]:hover, [data-slot="radio"][data-checked]:hover': {
+      background: 'var(--fl-accent)',
+    },
+    '[data-slot="checkbox-indicator"]': { fontSize: '0.8rem', lineHeight: 1, visibility: 'hidden' },
+    '[data-slot="checkbox-indicator"][data-checked]': { visibility: 'visible' },
+    '[data-slot="radio-indicator"]': {
+      width: '0.45rem',
+      height: '0.45rem',
+      borderRadius: '50%',
+      background: '#fff',
+      visibility: 'hidden',
+    },
+    '[data-slot="radio-indicator"][data-checked]': { visibility: 'visible' },
+    '[data-slot="checkbox"][data-disabled], [data-slot="radio"][data-disabled], [data-slot="switch"][data-disabled]':
+      {
+        opacity: 0.5,
+        cursor: 'not-allowed',
+      },
+
+    '[data-slot="switch"]': {
+      position: 'relative',
+      width: '2.4rem',
+      height: '1.4rem',
+      padding: 0,
+      border: 0,
+      borderRadius: '999px',
+      background: '#c3c9d4',
+      transition: 'background 140ms',
+    },
+    '[data-slot="switch"][data-checked]': { background: 'var(--fl-accent)' },
+    '[data-slot="switch"]:hover': { background: '#b3bac7' },
+    '[data-slot="switch"][data-checked]:hover': { background: 'var(--fl-accent)' },
+    '[data-slot="switch-thumb"]': {
+      position: 'absolute',
+      top: '0.15rem',
+      insetInlineStart: '0.15rem',
+      width: '1.1rem',
+      height: '1.1rem',
+      borderRadius: '50%',
+      background: '#fff',
+      boxShadow: '0 1px 2px rgb(0 0 0 / 0.25)',
+      transition: 'transform 140ms',
+    },
+    '[data-slot="switch-thumb"][data-checked]': { transform: 'translateX(1rem)' },
+
+    '[data-slot="tabs"]': { width: '100%' },
+    '[data-slot="tabs-list"]': {
+      display: 'flex',
+      gap: '0.25rem',
+      borderBottom: '1px solid var(--fl-border)',
+    },
+    '[data-slot="tabs-tab"]': {
+      border: 0,
+      borderBottom: '2px solid transparent',
+      borderRadius: 0,
+      background: 'transparent',
+      color: 'var(--fl-muted)',
+      padding: '0.55rem 0.9rem',
+      marginBottom: '-1px',
+    },
+    '[data-slot="tabs-tab"][data-selected]': {
+      color: 'var(--fl-text)',
+      borderBottomColor: 'var(--fl-accent)',
+      fontWeight: 550,
+    },
+    '[data-slot="tabs-tab"]:hover': { background: 'transparent', color: 'var(--fl-text)' },
+    '[data-slot="tabs-panel"]': { padding: '1rem 0.25rem', color: 'var(--fl-muted)' },
+
+    '[data-slot="collapsible"]': { width: '100%' },
+    '[data-slot="collapsible-trigger"]': { fontWeight: 500 },
+    '[data-slot="collapsible-panel"]': {
+      marginTop: '0.6rem',
+      padding: '0.8rem 1rem',
+      border: '1px solid var(--fl-border)',
+      borderRadius: 'var(--fl-radius)',
+      background: '#fafbfc',
+      color: 'var(--fl-muted)',
+    },
+
+    '[data-slot="slider"]': { width: '100%', maxWidth: '24rem' },
+    '[data-slot="slider-control"]': {
+      display: 'flex',
+      alignItems: 'center',
+      height: '1.5rem',
+      cursor: 'pointer',
+    },
+    '[data-slot="slider-track"]': {
+      width: '100%',
+      height: '6px',
+      borderRadius: '999px',
+      background: '#e1e4ea',
+    },
+    '[data-slot="slider-indicator"]': { borderRadius: '999px', background: 'var(--fl-accent)' },
+    '[data-slot="slider-thumb"]': {
+      width: '1.2rem',
+      height: '1.2rem',
+      borderRadius: '50%',
+      background: '#fff',
+      border: '2px solid var(--fl-accent)',
+      boxShadow: '0 1px 3px rgb(0 0 0 / 0.2)',
+    },
+    '[data-slot="slider-thumb"]:focus-within': {
+      outline: '2px solid var(--fl-accent)',
+      outlineOffset: '2px',
+    },
+
     // Field
     '[data-slot="field"]': { display: 'flex', flexDirection: 'column', gap: '0.35rem' },
     '[data-slot="field-label"], [data-slot="combobox-label"]': {

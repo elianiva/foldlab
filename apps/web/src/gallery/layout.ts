@@ -98,11 +98,13 @@ export const sectionOf = <M>(
     ],
   )
 
-/** A preview that stacks its children and uses the card's full width. */
+/** A full preview class (not a modifier) that stacks its children at the card's width. */
 export const stacked = css({
+  display: 'flex',
   flexDirection: 'column',
   alignItems: 'stretch',
-  justifyContent: 'flex-start',
+  gap: '0.75rem',
+  padding: '1.5rem 1.1rem',
 })
 
 export type NavEntry = Readonly<{ id: string; title: string }>

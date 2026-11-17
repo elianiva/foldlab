@@ -316,7 +316,10 @@ export const makeParts =
         const all = [
           ...toAttributes(h, own),
           ...typed,
-          ...(own['id'] ? [h.Key(own['id'])] : []),
+          // Always keyed. A Mount runs once, when its element is inserted, and Foldkit
+          // patches a same-tag sibling in place. Without a key, a part from another
+          // component (after a page change) reuses this element and keeps the old binding.
+          h.Key(`${component.name}:${key}:${slot}:${JSON.stringify(props)}`),
           ...attributes,
           ...mount,
         ]

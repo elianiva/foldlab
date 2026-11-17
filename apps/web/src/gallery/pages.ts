@@ -1,8 +1,9 @@
 import { staticPages } from './static-pages.ts'
+import { uiPages } from './ui-pages.ts'
 import type { Page } from './types.ts'
 
 /** Every gallery page, in sidebar order. The project form is not a gallery page: see `main.ts`. */
-export const galleryPages: ReadonlyArray<Page> = [...staticPages].toSorted((a, b) =>
+export const galleryPages: ReadonlyArray<Page> = [...staticPages, ...uiPages].toSorted((a, b) =>
   a.title.localeCompare(b.title),
 )
 

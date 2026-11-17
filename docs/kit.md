@@ -200,3 +200,9 @@ What it cannot prove:
 - **The lock's source.** ui-sdk core writes the lock, not the adapter. The spec proves the lock holds and releases through the adapter, not that the adapter's `lockSlot` marker is correct. Removing `lockSlot` leaves the spec green, and `bind.test.ts` covers the marker.
 - **Mixing providers.** The `@foldkit/ui` stacking case is in the docs and the dev warning, not in the spec.
 - **Timing.** The exit assertions use a 60 ms wait against a 150 ms fade. A very slow machine could flake.
+
+## Parts are always keyed
+
+`makeParts` gives every part a Foldkit key built from its component, instance key, slot and props. It is not optional. A Mount runs once, when its element is inserted, and Foldkit patches a same-tag sibling in place. After a page change, an unkeyed `<button>` from one component is reused for a `<button>` of another: its attributes update, but it keeps the old Mount, so the control looks right and does nothing. `e2e/gallery.pw.ts` navigates between pages and asserts the controls bind. With the key removed it fails.
+
+This applies to your own Mount-carrying elements too: key anything that carries `OnMount` and can swap places with another element of the same tag.
