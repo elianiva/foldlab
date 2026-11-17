@@ -16,10 +16,12 @@ import {
   ScrollArea,
   Toggle,
 } from '@foldlab/ui'
+import { css } from '../../styled-system/css'
 import { Message } from '../app/main.ts'
 import { sectionOf, stacked } from './layout.ts'
 import type { Page } from './types.ts'
 
+const rowCls = css({ display: 'flex', gap: '0.6rem' })
 const lines = Array.from({ length: 30 }, (_, i) => `Row ${i + 1}`)
 
 export const kitPages: ReadonlyArray<Page> = [
@@ -416,7 +418,7 @@ export const kitPages: ReadonlyArray<Page> = [
           'Types',
           [
             h.div(
-              [h.Class('row')],
+              [h.Class(rowCls)],
               [
                 h.button(
                   [h.Type('button'), h.OnClick(Message.ClickedToast({ type: 'success' }))],
