@@ -2,6 +2,10 @@
 import {
   AlertDialog,
   Carousel,
+  ContextMenu,
+  Menu,
+  Menubar,
+  Toast,
   Drawer,
   HoverCard,
   Listbox,
@@ -11,6 +15,7 @@ import {
   ScrollArea,
   Toggle,
 } from '@foldlab/ui'
+import { Message } from '../app/main.ts'
 import { sectionOf, stacked } from './layout.ts'
 import type { Page } from './types.ts'
 
@@ -316,6 +321,135 @@ export const kitPages: ReadonlyArray<Page> = [
           ],
           's.root({}, [], [s.viewport({}, [], [s.content(...)]), s.scrollbar({}, [], [s.thumb({}, [], [])])])',
           stacked,
+        ),
+      ]
+    },
+  },
+  {
+    id: 'context-menu',
+    title: 'Context Menu',
+    description: 'A menu opened by right click or Shift+F10.',
+    render: ({ h, model, ui }) => {
+      const m = ContextMenu.parts(model.ui.contextMenu, h, ui)
+      return [
+        sectionOf(
+          h,
+          'Basic',
+          [
+            m['context-trigger']({}, [], ['Right click here']),
+            m.content(
+              {},
+              [],
+              ['Back', 'Reload', 'Inspect'].map((text) => m.item({ value: text }, [], [text])),
+            ),
+            h.p([], [`Last action: ${model.ui.contextMenu.action || 'none'}`]),
+          ],
+          "m['context-trigger']({}, [], ['Right click here']),\nm.content({}, [], items)",
+          stacked,
+        ),
+      ]
+    },
+  },
+  {
+    id: 'menubar',
+    title: 'Menubar',
+    description: 'A bar of menus. The bar and each menu are separate instances.',
+    render: ({ h, model, ui }) => {
+      const bar = Menubar.parts(model.ui.menubar, h, ui)
+      const menu = (state: Menu.State) => {
+        const m = Menu.parts(state, h, ui)
+        return [
+          m.trigger({}, [], [state.key === 'mb-file' ? 'File' : 'Edit']),
+          m.content(
+            {},
+            [],
+            ['New', 'Open', 'Save'].map((text) => m.item({ value: text }, [], [text])),
+          ),
+        ]
+      }
+      return [
+        sectionOf(
+          h,
+          'Basic',
+          [bar.root({}, [], [...menu(model.ui.mbFile), ...menu(model.ui.mbEdit)])],
+          'bar.root({}, [], [...fileMenu, ...editMenu])',
+          stacked,
+        ),
+      ]
+    },
+  },
+  {
+    id: 'toggle-group',
+    title: 'Toggle Group',
+    description: 'Related toggles side by side.',
+    render: ({ h, model, ui }) => {
+      const states = [
+        ['Bold', model.ui.tgBold],
+        ['Italic', model.ui.tgItalic],
+        ['Underline', model.ui.tgUnderline],
+      ] as const
+      return [
+        sectionOf(
+          h,
+          'Multiple',
+          [
+            h.div(
+              [h.Attribute('data-slot', 'toggle-group'), h.Role('group')],
+              states.map(([text, state]) => Toggle.parts(state, h, ui).root({}, [], [text])),
+            ),
+          ],
+          'h.div([...], [bold, italic, underline].map(s => Toggle.parts(s, h, ui).root({}, [], [label])))',
+        ),
+      ]
+    },
+  },
+  {
+    id: 'toast',
+    title: 'Toast',
+    description: 'Short messages that leave on their own. Hover or focus pauses the timer.',
+    render: ({ h, model, ui }) => {
+      const t = Toast.parts(model.ui.toast, h, ui)
+      return [
+        sectionOf(
+          h,
+          'Types',
+          [
+            h.div(
+              [h.Class('row')],
+              [
+                h.button(
+                  [h.Type('button'), h.OnClick(Message.ClickedToast({ type: 'success' }))],
+                  ['Show success'],
+                ),
+                h.button(
+                  [h.Type('button'), h.OnClick(Message.ClickedToast({ type: 'error' }))],
+                  ['Show error'],
+                ),
+              ],
+            ),
+            t.region(
+              {},
+              [],
+              [
+                t.list(
+                  {},
+                  [],
+                  model.ui.toast.items.map((item) =>
+                    t.root(
+                      { id: item.id },
+                      [],
+                      [
+                        t.title({ id: item.id }, [], [item.title]),
+                        t.description({ id: item.id }, [], [item.description]),
+                        t.close({ id: item.id }, [], ['×']),
+                      ],
+                    ),
+                  ),
+                ),
+              ],
+            ),
+          ],
+          't.region({}, [], [t.list({}, [], items.map(item => t.root({ id: item.id }, [], [...])))])',
         ),
       ]
     },

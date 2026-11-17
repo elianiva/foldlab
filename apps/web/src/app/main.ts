@@ -12,6 +12,7 @@ import {
   Checkbox,
   Collapsible,
   Combobox,
+  ContextMenu,
   Command as UiCommand,
   Dialog,
   Drawer,
@@ -19,6 +20,7 @@ import {
   HoverCard,
   Listbox,
   Menu,
+  Menubar,
   NavigationMenu,
   OtpInput,
   Message as UiMessage,
@@ -30,6 +32,7 @@ import {
   Slider,
   Switch,
   Tabs,
+  Toast,
   Toggle,
   Tooltip,
   Ui,
@@ -40,6 +43,9 @@ import {
 import { css } from '../../styled-system/css'
 import { shell } from '../gallery/layout.ts'
 import { FORM_PAGE, galleryPages, pageOfHash } from '../gallery/pages.ts'
+
+// The toaster belongs to the app, like `kit`.
+export const toaster = Toast.makeToaster()
 
 // Every ui-sdk component the page uses. `confirm` sits inside `settings`: two dialogs, two states.
 export const kit = Ui.define({
@@ -75,6 +81,14 @@ export const kit = Ui.define({
   carousel: Carousel.component,
   resizable: Resizable.component,
   scroll: ScrollArea.component,
+  contextMenu: ContextMenu.component,
+  menubar: Menubar.component,
+  mbFile: Menu.component,
+  mbEdit: Menu.component,
+  toast: Toast.componentOf(toaster),
+  tgBold: Toggle.component,
+  tgItalic: Toggle.component,
+  tgUnderline: Toggle.component,
 })
 
 // ── Model ───────────────────────────────────────────────────────────────────
@@ -168,6 +182,9 @@ export const Message = defineMessageUnion({
   ClickedCopy: { text: Schema.String },
   CompletedCopy: { text: Schema.String },
   ChangedDemoPage: { value: Schema.Finite },
+  ClickedToast: { type: Schema.String },
+  GotToast: { item: Toast.ToastItem },
+  ChangedToasts: { ids: Schema.Array(Schema.String) },
 })
 export type Message = typeof Message.Type
 
@@ -177,6 +194,22 @@ export const CopyText = Command.define('CopyText', {
   execute: ({ text }) =>
     Effect.promise(() => navigator.clipboard.writeText(text).catch(() => undefined)).pipe(
       Effect.as(Message.CompletedCopy({ text })),
+    ),
+})
+
+export const ShowToast = Command.define('ShowToast', {
+  args: { type: Schema.String },
+  messages: [Message.GotToast],
+  execute: ({ type }) =>
+    Effect.sync(() =>
+      Message.GotToast({
+        item: Toast.show(toaster, {
+          title: type === 'error' ? 'Deploy failed' : 'Deploy finished',
+          description:
+            type === 'error' ? 'Worker foldlab-api rolled back.' : 'Worker foldlab-api is live.',
+          type,
+        }),
+      }),
     ),
 })
 
@@ -249,6 +282,14 @@ export const init = (flags: Flags) => ({
       carousel: Carousel.init({ key: 'carousel' }),
       resizable: Resizable.init({ key: 'resizable' }),
       scroll: ScrollArea.init({ key: 'scroll' }),
+      contextMenu: ContextMenu.init({ key: 'context-menu' }),
+      menubar: Menubar.init({ key: 'menubar' }),
+      mbFile: Menu.init({ key: 'mb-file' }),
+      mbEdit: Menu.init({ key: 'mb-edit' }),
+      toast: Toast.init({ key: 'toast' }),
+      tgBold: Toggle.init({ key: 'tg-bold' }),
+      tgItalic: Toggle.init({ key: 'tg-italic' }),
+      tgUnderline: Toggle.init({ key: 'tg-underline' }),
       region: Select.init({
         key: 'region',
         items: [
@@ -387,6 +428,13 @@ export const update = (model: Model, message: Message): Update.Return<Model, Mes
     ChangedPage: ({ page }) => ({ model: { ...model, page } }),
     ToggledLoading: () => ({
       model: { ...model, demo: { ...model.demo, loading: !model.demo.loading } },
+    }),
+    ClickedToast: ({ type }) => ({ model, commands: [ShowToast({ type })] }),
+    GotToast: ({ item }) => ({
+      model: { ...model, ui: { ...model.ui, toast: Toast.added(model.ui.toast, item) } },
+    }),
+    ChangedToasts: ({ ids }) => ({
+      model: { ...model, ui: { ...model.ui, toast: Toast.synced(model.ui.toast, ids) } },
     }),
     ClickedCopy: ({ text }) => ({ model, commands: [CopyText({ text })] }),
     CompletedCopy: ({ text }) => ({
@@ -736,6 +784,23 @@ const formPage = (
 ]
 
 export const subscriptions = Subscription.make<Model, Message>()((entry) => ({
+  toasts: entry(
+    { on: Schema.Boolean },
+    {
+      modelToDependencies: () => ({ on: true }),
+      dependenciesToStream: () =>
+        Stream.callback<Message>((queue) =>
+          Effect.acquireRelease(
+            Effect.sync(() =>
+              Toast.watch(toaster, (ids) =>
+                Queue.offerUnsafe(queue, Message.ChangedToasts({ ids })),
+              ),
+            ),
+            (unsubscribe) => Effect.sync(unsubscribe),
+          ).pipe(Effect.andThen(Effect.never)),
+        ),
+    },
+  ),
   hash: entry(
     { on: Schema.Boolean },
     {

@@ -2,7 +2,7 @@
 // renderer entry. Nothing here touches `window`, the DOM, or a counter: the
 // instance is built from Model state alone, read once, and thrown away.
 import type { PrimitiveInstance } from '@ui-sdk/core'
-import { attrs, present } from '@ui-sdk/core/renderer'
+import { attrs, menuContextTrigger, present } from '@ui-sdk/core/renderer'
 
 /** A ui-sdk primitive, seen only as "options in, instance out". */
 export type Primitive = (options: Record<string, unknown>) => PrimitiveInstance
@@ -40,3 +40,12 @@ export const renderPhase = (
     present: (slot, props) => present(instance.part(slot, props, true), props, state),
   }
 }
+
+/** A menu that also takes the `context-trigger` slot: ui-sdk makes it a feature, not a slot of `menu`. */
+export const withContextTrigger =
+  (primitive: Primitive): Primitive =>
+  (options) => {
+    const instance = primitive(options)
+    ;(instance as unknown as { use: (feature: unknown) => void }).use(menuContextTrigger)
+    return instance
+  }
