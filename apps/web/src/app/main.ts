@@ -1,5 +1,5 @@
-import { Effect, Schema } from 'effect'
-import { Command, FieldValidation, Update } from 'foldkit'
+import { Effect, Queue, Schema, Stream } from 'effect'
+import { Command, FieldValidation, Subscription, Update } from 'foldkit'
 import { Dialog as FkDialog } from '@foldkit/ui'
 import type { Document, Html, HtmlBuilder } from 'foldkit/html'
 import { defineMessageUnion } from 'foldkit/message'
@@ -15,6 +15,8 @@ import {
   stamp,
 } from '@foldlab/ui'
 import { css } from '../../styled-system/css'
+import { shell } from '../gallery/layout.ts'
+import { FORM_PAGE, galleryPages, pageOfHash } from '../gallery/pages.ts'
 
 // Every ui-sdk component the page uses. `confirm` sits inside `settings`: two dialogs, two states.
 export const kit = Ui.define({
@@ -31,11 +33,14 @@ const Text = FieldValidation.Field(Schema.String)
 const Strings = FieldValidation.Field(Schema.Array(Schema.String))
 
 // The id `kit.layer(container)` returned. The entry puts it in Flags, so no view guesses it.
-export const Flags = Schema.Struct({ anchorId: Schema.String })
+export const Flags = Schema.Struct({ anchorId: Schema.String, page: Schema.String })
 export type Flags = typeof Flags.Type
 
 export const Model = Schema.Struct({
   anchorId: Schema.String,
+  /** The gallery page, from the URL hash. */
+  page: Schema.String,
+  demo: Schema.Struct({ loading: Schema.Boolean, pagination: Schema.Finite }),
   name: Text,
   owner: Schema.Struct({ email: Text, assignee: Text }),
   schedule: Schema.Struct({ start: Text, end: Text }),
@@ -102,6 +107,9 @@ export const Message = defineMessageUnion({
   ClickedOpenFkDialog: {},
   ClickedToggleDialogs: {},
   ClickedSubmit: {},
+  ChangedPage: { page: Schema.String },
+  ToggledLoading: {},
+  ChangedDemoPage: { value: Schema.Finite },
 })
 export type Message = typeof Message.Type
 
@@ -119,6 +127,8 @@ export const CheckName = Command.define('CheckName', {
 export const init = (flags: Flags) => ({
   model: Model.make({
     anchorId: flags.anchorId,
+    page: flags.page,
+    demo: { loading: false, pagination: 1 },
     name: FieldValidation.NotValidated({ value: '' }),
     owner: {
       email: FieldValidation.NotValidated({ value: '' }),
@@ -262,6 +272,13 @@ export const update = (model: Model, message: Message): Update.Return<Model, Mes
         ),
       }
     },
+    ChangedPage: ({ page }) => ({ model: { ...model, page } }),
+    ToggledLoading: () => ({
+      model: { ...model, demo: { ...model.demo, loading: !model.demo.loading } },
+    }),
+    ChangedDemoPage: ({ value }) => ({
+      model: { ...model, demo: { ...model.demo, pagination: value } },
+    }),
     ClickedSubmit: () => {
       const next = {
         ...model,
@@ -538,70 +555,115 @@ const dialogs = (h: HtmlBuilder<Message>, model: Model): Html => {
   )
 }
 
+const formPage = (
+  h: HtmlBuilder<Message>,
+  model: Model,
+  ui: PartsConfig<Message>,
+): ReadonlyArray<Html> => [
+  textField(h, ui, {
+    id: 'name',
+    label: 'Project name',
+    description: 'Lowercase, unique across projects.',
+    field: model.name,
+    required: FieldValidation.isRequired(rules.name),
+    toMessage: (value) => Message.ChangedName({ value }),
+  }),
+  textField(h, ui, {
+    id: 'owner-email',
+    label: 'Owner email',
+    description: 'Where project notices go.',
+    field: model.owner.email,
+    required: true,
+    type: 'email',
+    toMessage: (value) => Message.ChangedEmail({ value }),
+  }),
+  comboField(h, ui, {
+    id: 'owner-assignee',
+    label: 'Assignee',
+    description: 'Who triages new issues.',
+    box: model.ui.assigneeBox,
+    field: model.owner.assignee,
+    placeholder: 'Search people',
+  }),
+  textField(h, ui, {
+    id: 'schedule-start',
+    label: 'Start date',
+    description: 'First day of work.',
+    field: model.schedule.start,
+    required: true,
+    type: 'date',
+    toMessage: (value) => Message.ChangedStart({ value }),
+  }),
+  textField(h, ui, {
+    id: 'schedule-end',
+    label: 'End date',
+    description: 'Must not be before the start date.',
+    field: model.schedule.end,
+    required: true,
+    type: 'date',
+    toMessage: (value) => Message.ChangedEnd({ value }),
+  }),
+  comboField(h, ui, {
+    id: 'channels',
+    label: 'Notification channels',
+    description: 'Pick one or more.',
+    box: model.ui.channelBox,
+    field: model.channels,
+    placeholder: 'Search channels',
+  }),
+  h.button([h.Type('button'), h.OnClick(Message.ClickedSubmit())], ['Create project']),
+  model.submitted ? status(h, 'Project created.') : null,
+  helpSection(h, model),
+  dialogs(h, model),
+]
+
+export const subscriptions = Subscription.make<Model, Message>()((entry) => ({
+  hash: entry(
+    { on: Schema.Boolean },
+    {
+      modelToDependencies: () => ({ on: true }),
+      dependenciesToStream: () =>
+        Stream.callback<Message>((queue) =>
+          Effect.acquireRelease(
+            Effect.sync(() => {
+              const listener = () =>
+                Queue.offerUnsafe(queue, Message.ChangedPage({ page: pageOfHash(location.hash) }))
+              addEventListener('hashchange', listener)
+              return listener
+            }),
+            (listener) => Effect.sync(() => removeEventListener('hashchange', listener)),
+          ).pipe(Effect.andThen(Effect.never)),
+        ),
+    },
+  ),
+}))
+
 export const view = (model: Model, h: HtmlBuilder<Message>): Document => {
   const ui = uiOf(model)
+  const groups = [
+    { name: 'Examples', entries: [{ id: FORM_PAGE, title: 'Project form' }] },
+    {
+      name: 'Components',
+      entries: galleryPages.map(({ id, title }) => ({ id, title })),
+    },
+  ]
+  const page = galleryPages.find((entry) => entry.id === model.page)
+  const isForm = model.page === FORM_PAGE || page === undefined
   return {
     title: 'foldlab',
-    body: h.main(
-      [h.Class(stack)],
-      [
-        h.h1([], ['New project']),
-        textField(h, ui, {
-          id: 'name',
-          label: 'Project name',
-          description: 'Lowercase, unique across projects.',
-          field: model.name,
-          required: FieldValidation.isRequired(rules.name),
-          toMessage: (value) => Message.ChangedName({ value }),
-        }),
-        textField(h, ui, {
-          id: 'owner-email',
-          label: 'Owner email',
-          description: 'Where project notices go.',
-          field: model.owner.email,
-          required: true,
-          type: 'email',
-          toMessage: (value) => Message.ChangedEmail({ value }),
-        }),
-        comboField(h, ui, {
-          id: 'owner-assignee',
-          label: 'Assignee',
-          description: 'Who triages new issues.',
-          box: model.ui.assigneeBox,
-          field: model.owner.assignee,
-          placeholder: 'Search people',
-        }),
-        textField(h, ui, {
-          id: 'schedule-start',
-          label: 'Start date',
-          description: 'First day of work.',
-          field: model.schedule.start,
-          required: true,
-          type: 'date',
-          toMessage: (value) => Message.ChangedStart({ value }),
-        }),
-        textField(h, ui, {
-          id: 'schedule-end',
-          label: 'End date',
-          description: 'Must not be before the start date.',
-          field: model.schedule.end,
-          required: true,
-          type: 'date',
-          toMessage: (value) => Message.ChangedEnd({ value }),
-        }),
-        comboField(h, ui, {
-          id: 'channels',
-          label: 'Notification channels',
-          description: 'Pick one or more.',
-          box: model.ui.channelBox,
-          field: model.channels,
-          placeholder: 'Search channels',
-        }),
-        h.button([h.Type('button'), h.OnClick(Message.ClickedSubmit())], ['Create project']),
-        model.submitted ? status(h, 'Project created.') : null,
-        helpSection(h, model),
-        dialogs(h, model),
-      ],
+    body: shell(
+      h,
+      {
+        current: isForm ? FORM_PAGE : model.page,
+        groups,
+        title: isForm ? 'Project form' : (page?.title ?? ''),
+        description: isForm
+          ? 'Nested fields, cross-field and async validation, a combobox and a multi-select, all through the adapter.'
+          : (page?.description ?? ''),
+      },
+      isForm
+        ? [h.div([h.Class(stack)], formPage(h, model, ui))]
+        : (page?.render({ h, model, ui }) ?? []),
     ),
   }
 }

@@ -59,6 +59,226 @@ export const foldlab = definePreset({
     'input:focus-visible': { outlineOffset: '0', borderColor: 'var(--fl-accent)' },
     'input::placeholder': { color: 'var(--fl-muted)' },
 
+    // ── Elements (no behavior) ──
+    '[data-slot="button"]': {
+      display: 'inline-flex',
+      alignItems: 'center',
+      justifyContent: 'center',
+      gap: '0.4rem',
+      fontWeight: 500,
+      whiteSpace: 'nowrap',
+    },
+    '[data-slot="button"][data-size="sm"]': { padding: '0.3rem 0.65rem', fontSize: '0.85rem' },
+    '[data-slot="button"][data-size="lg"]': { padding: '0.65rem 1.2rem', fontSize: '1.05rem' },
+    '[data-slot="button"][data-shape="square"]': {
+      padding: 0,
+      width: '2.25rem',
+      height: '2.25rem',
+    },
+    '[data-slot="button"][data-shape="square"][data-size="sm"]': {
+      width: '1.8rem',
+      height: '1.8rem',
+    },
+    '[data-slot="button"][data-shape="square"][data-size="lg"]': {
+      width: '2.8rem',
+      height: '2.8rem',
+    },
+    '[data-slot="button"][data-variant="primary"]': {
+      background: 'var(--fl-accent)',
+      borderColor: 'var(--fl-accent)',
+      color: '#fff',
+    },
+    [hit('[data-slot="button"][data-variant="primary"]:hover')]: {
+      background: '#244ad0',
+      borderColor: '#244ad0',
+    },
+    '[data-slot="button"][data-variant="ghost"]': {
+      background: 'transparent',
+      borderColor: 'transparent',
+    },
+    '[data-slot="button"][data-variant="destructive"]': {
+      background: 'var(--fl-danger)',
+      borderColor: 'var(--fl-danger)',
+      color: '#fff',
+    },
+    [hit('[data-slot="button"][data-variant="destructive"]:hover')]: {
+      background: '#a31f26',
+      borderColor: '#a31f26',
+    },
+    '[data-slot="button"]:disabled': { opacity: 0.5, cursor: 'not-allowed' },
+    '[data-slot="button-group"]': { display: 'inline-flex' },
+    '[data-slot="button-group"] > [data-slot="button"]': { borderRadius: 0 },
+    '[data-slot="button-group"] > [data-slot="button"]:first-child': {
+      borderStartStartRadius: 'var(--fl-radius)',
+      borderEndStartRadius: 'var(--fl-radius)',
+    },
+    '[data-slot="button-group"] > [data-slot="button"]:last-child': {
+      borderStartEndRadius: 'var(--fl-radius)',
+      borderEndEndRadius: 'var(--fl-radius)',
+    },
+    '[data-slot="button-group"] > [data-slot="button"] + [data-slot="button"]': {
+      marginInlineStart: '-1px',
+    },
+
+    '[data-slot="loader"]': {
+      display: 'inline-block',
+      width: '1em',
+      height: '1em',
+      border: '2px solid currentColor',
+      borderRightColor: 'transparent',
+      borderRadius: '50%',
+      animation: 'fl-spin 0.7s linear infinite',
+    },
+    '[data-slot="loader"][data-size="lg"]': { width: '1.6em', height: '1.6em' },
+
+    '[data-slot="badge"]': {
+      display: 'inline-flex',
+      alignItems: 'center',
+      padding: '0.1rem 0.5rem',
+      borderRadius: '999px',
+      fontSize: '0.75rem',
+      fontWeight: 550,
+      background: '#eceef2',
+      color: '#3a414f',
+    },
+    '[data-slot="badge"][data-tone="info"]': { background: '#e8edfd', color: '#2447c0' },
+    '[data-slot="badge"][data-tone="success"]': { background: '#e2f5e9', color: '#17703a' },
+    '[data-slot="badge"][data-tone="warning"]': { background: '#fdf0d8', color: '#8a5a05' },
+    '[data-slot="badge"][data-tone="error"]': { background: '#fbe5e6', color: '#a31f26' },
+
+    '[data-slot="banner"]': {
+      padding: '0.75rem 1rem',
+      border: '1px solid var(--fl-border)',
+      borderRadius: 'var(--fl-radius)',
+      background: '#e8edfd',
+      borderColor: '#c3cffa',
+    },
+    '[data-slot="banner"][data-tone="neutral"]': {
+      background: '#f1f2f5',
+      borderColor: 'var(--fl-border)',
+    },
+    '[data-slot="banner"][data-tone="success"]': { background: '#e2f5e9', borderColor: '#b5e3c6' },
+    '[data-slot="banner"][data-tone="warning"]': { background: '#fdf0d8', borderColor: '#f2d9a0' },
+    '[data-slot="banner"][data-tone="error"]': { background: '#fbe5e6', borderColor: '#f1b9bc' },
+    '[data-slot="banner-title"]': { margin: 0, fontWeight: 600 },
+    '[data-slot="banner-body"]': { fontSize: '0.92rem' },
+
+    '[data-slot="breadcrumbs"] ol': {
+      display: 'flex',
+      flexWrap: 'wrap',
+      gap: '0.4rem',
+      listStyle: 'none',
+      margin: 0,
+      padding: 0,
+      fontSize: '0.9rem',
+      color: 'var(--fl-muted)',
+    },
+    '[data-slot="breadcrumbs"] li + li::before': {
+      content: '"/"',
+      marginInlineEnd: '0.4rem',
+      opacity: 0.6,
+    },
+    '[data-slot="breadcrumbs"] [aria-current="page"]': { color: 'var(--fl-text)', fontWeight: 550 },
+
+    '[data-slot="empty"]': {
+      display: 'flex',
+      flexDirection: 'column',
+      alignItems: 'center',
+      gap: '0.5rem',
+      padding: '2rem 1rem',
+      textAlign: 'center',
+      border: '1px dashed var(--fl-border)',
+      borderRadius: 'var(--fl-radius)',
+    },
+    '[data-slot="empty-title"]': { margin: 0, fontWeight: 600 },
+    '[data-slot="empty-description"]': { margin: 0, color: 'var(--fl-muted)', fontSize: '0.9rem' },
+
+    '[data-slot="label"]': { fontWeight: 550, fontSize: '0.9rem' },
+    '[data-slot="label"][data-required]::after': { content: '" *"', color: 'var(--fl-danger)' },
+    '[data-slot="input"][data-size="sm"]': { padding: '0.3rem 0.55rem', fontSize: '0.85rem' },
+    '[data-slot="input"][data-size="lg"]': { padding: '0.7rem 0.85rem', fontSize: '1.05rem' },
+    '[data-slot="input"][data-invalid]': { borderColor: 'var(--fl-danger)' },
+    '[data-slot="input"]:disabled': { opacity: 0.55, cursor: 'not-allowed' },
+
+    '[data-slot="link"]': {
+      color: 'var(--fl-accent)',
+      textDecoration: 'underline',
+      textUnderlineOffset: '2px',
+    },
+    '[data-slot="link"][data-variant="plain"]': { color: 'inherit', textDecoration: 'none' },
+    '[data-slot="link"]:hover': { textDecoration: 'none' },
+
+    '[data-slot="skeleton-line"]': {
+      display: 'block',
+      height: '0.8rem',
+      borderRadius: '4px',
+      background: 'linear-gradient(90deg, #e9ebf0 25%, #f4f5f8 50%, #e9ebf0 75%)',
+      backgroundSize: '200% 100%',
+      animation: 'fl-shimmer 1.4s ease-in-out infinite',
+    },
+
+    '[data-slot="text"]': { margin: 0 },
+    '[data-slot="text"][data-variant="heading1"]': {
+      fontSize: '1.9rem',
+      fontWeight: 650,
+      letterSpacing: '-0.02em',
+    },
+    '[data-slot="text"][data-variant="heading2"]': { fontSize: '1.35rem', fontWeight: 620 },
+    '[data-slot="text"][data-variant="heading3"]': { fontSize: '1.05rem', fontWeight: 600 },
+    '[data-slot="text"][data-variant="secondary"]': { color: 'var(--fl-muted)' },
+    '[data-slot="text"][data-variant="mono"]': {
+      fontFamily: 'ui-monospace, "SF Mono", monospace',
+      fontSize: '0.88rem',
+    },
+
+    '[data-slot="layer-card"]': {
+      padding: '1rem 1.1rem',
+      border: '1px solid var(--fl-border)',
+      borderRadius: '12px',
+      background: 'var(--fl-surface)',
+      boxShadow: '0 1px 2px rgb(23 26 33 / 0.05)',
+    },
+
+    '[data-slot="table"]': {
+      overflowX: 'auto',
+      border: '1px solid var(--fl-border)',
+      borderRadius: 'var(--fl-radius)',
+      background: 'var(--fl-surface)',
+    },
+    '[data-slot="table"] table': { width: '100%', borderCollapse: 'collapse', fontSize: '0.9rem' },
+    '[data-slot="table"] th': {
+      textAlign: 'start',
+      padding: '0.6rem 0.9rem',
+      color: 'var(--fl-muted)',
+      fontWeight: 550,
+      fontSize: '0.8rem',
+      background: '#f8f9fb',
+      borderBottom: '1px solid var(--fl-border)',
+    },
+    '[data-slot="table"] td': {
+      padding: '0.65rem 0.9rem',
+      borderBottom: '1px solid var(--fl-border)',
+    },
+    '[data-slot="table"] tbody tr:last-child td': { borderBottom: 0 },
+
+    '[data-slot="meter"]': { display: 'flex', flexDirection: 'column', gap: '0.35rem' },
+    '[data-slot="meter-label"]': {
+      display: 'flex',
+      justifyContent: 'space-between',
+      fontSize: '0.85rem',
+    },
+    '[data-slot="meter-track"]': {
+      height: '8px',
+      borderRadius: '999px',
+      background: '#e9ebf0',
+      overflow: 'hidden',
+    },
+    '[data-slot="meter-indicator"]': {
+      height: '100%',
+      background: 'var(--fl-accent)',
+      borderRadius: '999px',
+    },
+
     // Field
     '[data-slot="field"]': { display: 'flex', flexDirection: 'column', gap: '0.35rem' },
     '[data-slot="field-label"], [data-slot="combobox-label"]': {

@@ -1,8 +1,9 @@
 import { Effect, Layer } from 'effect'
 import { Runtime } from 'foldkit'
-import { Flags, init, kit, Message, Model, update, view } from './app/main.ts'
+import { Flags, init, kit, Message, Model, subscriptions, update, view } from './app/main.ts'
 import { ApiRpc } from './platform/rpc.ts'
 import { reportCrash, reportSlow, startSentry, tracerLayer } from './platform/sentry.ts'
+import { pageOfHash } from './gallery/pages.ts'
 import './styles.css'
 
 // First, so errors while the app boots are caught too.
@@ -19,6 +20,7 @@ const application = Runtime.makeApplication({
   init,
   update,
   view,
+  subscriptions,
   resources: Layer.mergeAll(ApiRpc.layer, tracerLayer, ui.layer),
   container,
   crash: { report: reportCrash },
@@ -26,4 +28,6 @@ const application = Runtime.makeApplication({
   devTools: { Message },
 })
 
-Runtime.run(application, { flags: Effect.succeed({ anchorId: ui.anchorId }) })
+Runtime.run(application, {
+  flags: Effect.succeed({ anchorId: ui.anchorId, page: pageOfHash(location.hash) }),
+})

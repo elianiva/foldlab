@@ -7,7 +7,7 @@ import { expect, test } from 'vitest'
 import { init, Message, update, view } from './main.ts'
 
 const lift = (message: UiMessage) => Message.GotUiMessage({ message })
-const base = init({ anchorId: '' }).model
+const base = init({ anchorId: '', page: 'form' }).model
 const withSettings = (settings: Dialog.State) => ({ ...base, ui: { ...base.ui, settings } })
 // Two comboboxes (3 parts each) and the accordion (7): the page's own Mounts.
 const PAGE_MOUNTS = 13
