@@ -8,8 +8,8 @@
   },
   "dependencies": {
     "@foldlab/rpc": "workspace:*",
-    "@sentry/cloudflare": "11.11.0",
-    "@sentry/effect": "11.11.0",
-    "effect": "4.0.0"
+    "@sentry/cloudflare": "11.12.0",
+    "@sentry/effect": "11.12.0",
+    "effect": "4.1.4"
   }
 }

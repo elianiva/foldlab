@@ -5,6 +5,10 @@ step() {
   printf '\n==> %s\n' "$1"
 }
 
+# The committed lockfile is the source of truth. A fresh publish inside the
+# minimumReleaseAge window would otherwise fail setup until the window passes.
+export pnpm_config_minimum_release_age=0
+
 started_at="$(date +%s)"
 node_major="$(cut -d. -f1 .node-version 2>/dev/null || echo 26)"
 node_major="${node_major:-26}"
@@ -64,10 +68,12 @@ fi
 
 node --version
 
-step 'Ensure pnpm 12.0.0'
+pnpm_version="$(jq -r '.packageManager | sub("^pnpm@"; "") | sub("\\+.*$"; "")' package.json)"
+
+step "Ensure pnpm $pnpm_version"
 current_pnpm="$(pnpm --version 2>/dev/null || true)"
-if [[ "$current_pnpm" != '12.0.0' ]]; then
-  sudo -n npm install --global pnpm@12.0.0
+if [[ "$current_pnpm" != "$pnpm_version" ]]; then
+  sudo -n npm install --global "pnpm@$pnpm_version"
   hash -r
 fi
 pnpm --version

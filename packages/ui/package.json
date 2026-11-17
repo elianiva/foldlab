@@ -16,12 +16,12 @@
   },
   "devDependencies": {
     "@pandacss/dev": "2.5.0",
-    "effect": "4.0.0",
-    "foldkit": "0.167.0",
+    "effect": "4.1.4",
+    "foldkit": "0.170.0",
     "happy-dom": "21.0.4"
   },
   "peerDependencies": {
-    "effect": "4.0.0",
-    "foldkit": "0.167.0"
+    "effect": "4.1.4",
+    "foldkit": "0.170.0"
   }
 }

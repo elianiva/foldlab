@@ -287,7 +287,7 @@ Toast, drawer, menu, popover and tooltip all fit this rule. Each component's sec
 
 ## Dialog
 
-Dialog is the component that stresses the two design choices that combobox and accordion never touched: one Mount per part, and a registry keyed by the Model. It was built through the adapter (`packages/ui/src/dialog.ts`) and compared with `@foldkit/ui`'s Dialog (0.170.0) on the same page. `@foldkit/ui` asks for `effect ~4.1.0`; the template pins 4.0.0. It ran, with a peer warning.
+Dialog is the component that stresses the two design choices that combobox and accordion never touched: one Mount per part, and a registry keyed by the Model. It was built through the adapter (`packages/ui/src/dialog.ts`) and compared with `@foldkit/ui`'s Dialog (0.170.0) on the same page. `@foldkit/ui` asks for `effect ~4.1.0`; the template pins 4.1.4. It ran, with a peer warning.
 
 ### Mapping from `Binding` to a dialog
 
@@ -368,7 +368,7 @@ We do not patch `@foldkit/ui`.
 
 ## Dependencies
 
-The kit's peer surface is `foldkit` and `effect`, and nothing else. `@foldkit/ui` is a dev dependency of `apps/web`, where the comparison lives. It asks for `effect ~4.1.0` and the template pins 4.0.0, so the 4.0 versus 4.1 question is now a demo question. If `@foldkit/ui` ever has to enter the shipped surface, bump `effect` to 4.1 and prove it with check, typecheck, tests and build in the same commit.
+The kit's peer surface is `foldkit` and `effect`, and nothing else. `@foldkit/ui` is a dev dependency of `apps/web`, where the comparison lives. It asks for `effect ~4.1.0` and the template pins 4.1.4, so the 4.0 versus 4.1 question is now a demo question. If `@foldkit/ui` ever has to enter the shipped surface, bump `effect` to 4.1 and prove it with check, typecheck, tests and build in the same commit.
 
 `packages/ui/src/boundaries.test.ts` enforces this: `@foldkit/ui` appears in no manifest field of the kit and no kit source imports it, and the peer surface is exactly `effect` and `foldkit`. `@ui-sdk/core` is the kit's one runtime dependency, pinned.
 
