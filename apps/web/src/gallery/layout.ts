@@ -9,29 +9,38 @@ const sidebarCls = css({
   height: '100vh',
   overflowY: 'auto',
   padding: '1.25rem 0.9rem',
-  borderRight: '1px solid var(--fl-border)',
-  background: 'var(--fl-surface)',
+  borderRight: '1px solid var(--hairline)',
+  background: 'var(--muted)',
 })
-const brandCls = css({ fontSize: '1.05rem', fontWeight: 650, padding: '0 0.6rem 1rem' })
-const groupCls = css({
-  fontSize: '0.72rem',
+const brandCls = css({
+  fontFamily: 'var(--mono)',
+  fontSize: '0.8rem',
   fontWeight: 600,
-  letterSpacing: '0.06em',
+  letterSpacing: '0.08em',
   textTransform: 'uppercase',
-  color: 'var(--fl-muted)',
+  padding: '0 0.6rem 1rem',
+})
+const groupCls = css({
+  fontFamily: 'var(--mono)',
+  fontSize: '0.68rem',
+  fontWeight: 500,
+  letterSpacing: '0.1em',
+  textTransform: 'uppercase',
+  color: 'var(--muted-foreground)',
   padding: '1rem 0.6rem 0.4rem',
 })
 const navLinkCls = css({
   display: 'block',
   padding: '0.35rem 0.6rem',
   borderRadius: '6px',
-  color: 'var(--fl-muted)',
-  fontSize: '0.92rem',
+  color: 'var(--muted-foreground)',
+  fontSize: '0.88rem',
   textDecoration: 'none',
-  '&:hover': { background: '#f1f2f5', color: 'var(--fl-text)' },
+  '&:hover': { background: 'var(--accent)', color: 'var(--foreground)' },
   '&[aria-current="page"]': {
-    background: 'var(--fl-accent-soft)',
-    color: 'var(--fl-accent)',
+    background: 'var(--raised-top)',
+    boxShadow: 'var(--elev-raised)',
+    color: 'var(--foreground)',
     fontWeight: 550,
   },
 })
@@ -49,19 +58,23 @@ const headerCls = css({
   gap: '0.4rem',
   paddingBottom: '0.5rem',
 })
-const titleCls = css({ fontSize: '2rem', fontWeight: 650, letterSpacing: '-0.02em', margin: 0 })
+const titleCls = css({ fontSize: '1.75rem', fontWeight: 600, letterSpacing: '-0.02em', margin: 0 })
 const leadCls = css({ margin: 0, color: 'var(--fl-muted)', fontSize: '1.02rem' })
 const cardCls = css({
-  border: '1px solid var(--fl-border)',
-  borderRadius: '12px',
-  background: 'var(--fl-surface)',
+  borderRadius: 'calc(var(--radius) * 1.8)',
+  background: 'var(--card)',
+  boxShadow: 'var(--elev-card)',
   overflow: 'hidden',
 })
 const cardTitleCls = css({
   margin: 0,
-  padding: '0.85rem 1.1rem 0',
-  fontSize: '0.95rem',
-  fontWeight: 600,
+  padding: '0.9rem 1.1rem 0',
+  fontFamily: 'var(--mono)',
+  fontSize: '0.68rem',
+  fontWeight: 500,
+  letterSpacing: '0.1em',
+  textTransform: 'uppercase',
+  color: 'var(--muted-foreground)',
 })
 const previewCls = css({
   display: 'flex',
@@ -74,10 +87,10 @@ const previewCls = css({
 const codeCls = css({
   margin: 0,
   padding: '0.9rem 1.1rem',
-  borderTop: '1px solid var(--fl-border)',
-  background: '#fafbfc',
-  fontFamily: 'ui-monospace, "SF Mono", monospace',
-  fontSize: '0.8rem',
+  borderTop: '1px solid var(--hairline-soft)',
+  background: 'var(--surface-nested)',
+  fontFamily: 'var(--mono)',
+  fontSize: '0.75rem',
   lineHeight: 1.6,
   overflowX: 'auto',
 })

@@ -359,16 +359,15 @@ const stack = css({
   flexDirection: 'column',
   gap: '1rem',
   maxWidth: '36rem',
-  margin: '2.5rem auto',
-  padding: '0 1rem',
+  width: '100%',
 })
 const group = css({
   display: 'flex',
   flexDirection: 'column',
   gap: '0.5rem',
-  border: '1px solid var(--fl-border)',
-  borderRadius: 'var(--fl-radius)',
-  background: 'var(--fl-surface)',
+  borderRadius: 'calc(var(--radius) * 1.4)',
+  background: 'var(--card)',
+  boxShadow: 'var(--elev-card)',
   padding: '1rem 1.1rem',
 })
 const row = css({ display: 'flex', flexWrap: 'wrap', gap: '0.5rem' })
