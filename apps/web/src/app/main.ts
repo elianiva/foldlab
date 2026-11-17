@@ -878,17 +878,19 @@ export const view = (model: Model, h: HtmlBuilder<Message>): Document => {
       })),
     },
   ]
-  const { current, title, description, content } = AppRoute.match<{
+  const { current, title, description, content, wide } = AppRoute.match<{
     current: string
     title: string
     description: string
     content: ReadonlyArray<Html>
+    wide?: boolean
   }>(model.route, {
     Overview: () => ({
       current: pathOf(model.route),
       title: 'Overview',
       description: 'Every component in the kit.',
-      content: overviewPage(h, galleryPages),
+      content: overviewPage({ h, model, ui }, galleryPages),
+      wide: true,
     }),
     Form: () => ({
       current: pathOf(model.route),
@@ -915,6 +917,6 @@ export const view = (model: Model, h: HtmlBuilder<Message>): Document => {
   })
   return {
     title: `${title} · foldlab`,
-    body: shell(h, { current, groups, title, description }, content),
+    body: shell(h, { current, groups, title, description, wide: wide === true }, content),
   }
 }

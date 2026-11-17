@@ -52,6 +52,13 @@ const mainCls = css({
   maxWidth: '52rem',
   padding: '2.5rem 2.5rem 5rem',
 })
+const wideMainCls = css({
+  display: 'flex',
+  flexDirection: 'column',
+  gap: '1.5rem',
+  width: '100%',
+  padding: '2.5rem 2.5rem 0',
+})
 const headerCls = css({
   display: 'flex',
   flexDirection: 'column',
@@ -103,11 +110,13 @@ export const sectionOf = <M>(
   previewClass = previewCls,
 ): Html =>
   h.section(
-    [h.Class(cardCls)],
+    [h.Class(cardCls), h.Attribute('data-slot', 'section')],
     [
-      h.h3([h.Class(cardTitleCls)], [title]),
-      h.div([h.Class(previewClass)], preview),
-      code === undefined ? null : h.pre([h.Class(codeCls)], [h.code([], [code])]),
+      h.h3([h.Class(cardTitleCls), h.Attribute('data-slot', 'section-title')], [title]),
+      h.div([h.Class(previewClass), h.Attribute('data-slot', 'section-preview')], preview),
+      code === undefined
+        ? null
+        : h.pre([h.Class(codeCls), h.Attribute('data-slot', 'section-code')], [h.code([], [code])]),
     ],
   )
 
@@ -129,6 +138,8 @@ export const shell = <M>(
     groups: ReadonlyArray<Readonly<{ name: string; entries: ReadonlyArray<NavEntry> }>>
     title: string
     description: string
+    /** Lets the content use the full width, as the overview grid does. */
+    wide?: boolean
   }>,
   content: ReadonlyArray<Html | string>,
 ): Html =>
@@ -158,7 +169,7 @@ export const shell = <M>(
         ],
       ),
       h.main(
-        [h.Class(mainCls)],
+        [h.Class(props.wide === true ? wideMainCls : mainCls)],
         [
           h.header(
             [h.Class(headerCls)],

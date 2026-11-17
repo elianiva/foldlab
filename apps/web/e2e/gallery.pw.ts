@@ -18,3 +18,17 @@ test('controls bind after navigating from another page', async ({ page }) => {
   await expect(page.getByText('Selected: team')).toBeVisible()
   await expect(page.locator('[data-foldlab-unbound]')).toHaveCount(0)
 })
+
+test('the overview grid shows every component live, and a title opens its page', async ({
+  page,
+}) => {
+  await page.goto('/')
+  await expect(page.locator('[data-slot="overview-cell"]').first()).toBeVisible()
+  await expect(page.locator('[data-foldlab-unbound]')).toHaveCount(0)
+  await page
+    .locator('[data-slot="overview-cell"]')
+    .getByRole('link', { name: 'Checkbox', exact: true })
+    .click()
+  await expect(page).toHaveURL(/\/components\/checkbox$/)
+  await expect(page.locator('[data-foldlab-unbound]')).toHaveCount(0)
+})
