@@ -3,7 +3,7 @@
 // `h`, with no ui-sdk instance and no Mount, so they cost nothing at runtime and
 // work in a Scene test as they are. Foldkit events (`h.OnClick`) go in through
 // `attributes`; these elements have no core handler to collide with.
-import type { Attribute, Html, HtmlBuilder } from 'foldkit/html'
+import type { Attribute, Html, HtmlBuilder, TextareaAttribute } from 'foldkit/html'
 
 type Children = ReadonlyArray<Html | string>
 type Attrs<M> = ReadonlyArray<Attribute<M>>
@@ -214,3 +214,34 @@ export const meter = <M>(
     ],
   )
 }
+
+export const toolbar = <M>(h: HtmlBuilder<M>, children: Children): Html =>
+  h.div([...data(h, 'toolbar'), h.Role('toolbar')], children)
+
+export const grid = <M>(
+  h: HtmlBuilder<M>,
+  props: Readonly<{ columns?: number }>,
+  children: Children,
+): Html =>
+  h.div(
+    [...data(h, 'grid'), h.Style({ gridTemplateColumns: `repeat(${props.columns ?? 3}, 1fr)` })],
+    children,
+  )
+
+export const inputArea = <M>(
+  h: HtmlBuilder<M>,
+  props: Readonly<{ placeholder?: string; rows?: number }>,
+  attributes: ReadonlyArray<TextareaAttribute<M>>,
+): Html =>
+  h.textarea([
+    h.Attribute('data-slot', 'input-area'),
+    ...(props.placeholder === undefined ? [] : [h.Placeholder(props.placeholder)]),
+    h.Rows(props.rows ?? 4),
+    ...attributes,
+  ])
+
+export const inputGroup = <M>(h: HtmlBuilder<M>, children: Children): Html =>
+  h.div([...data(h, 'input-group'), h.Role('group')], children)
+
+export const code = <M>(h: HtmlBuilder<M>, source: string): Html =>
+  h.pre(data(h, 'code'), [h.code([], [source])])

@@ -279,6 +279,49 @@ export const foldlab = definePreset({
       borderRadius: '999px',
     },
 
+    '[data-slot="toolbar"]': {
+      display: 'inline-flex',
+      alignItems: 'center',
+      gap: '0.25rem',
+      padding: '0.3rem',
+      border: '1px solid var(--fl-border)',
+      borderRadius: '10px',
+      background: 'var(--fl-surface)',
+    },
+    '[data-slot="toolbar"] [data-slot="button"]': { border: 0 },
+    '[data-slot="grid"]': { display: 'grid', gap: '0.75rem', width: '100%' },
+    '[data-slot="input-area"]': {
+      font: 'inherit',
+      width: '100%',
+      padding: '0.6rem 0.7rem',
+      border: '1px solid var(--fl-border)',
+      borderRadius: 'var(--fl-radius)',
+      background: 'var(--fl-surface)',
+      resize: 'vertical',
+    },
+    '[data-slot="input-group"]': { display: 'flex', width: '100%' },
+    '[data-slot="input-group"] > [data-slot="input"]': {
+      borderStartEndRadius: 0,
+      borderEndEndRadius: 0,
+      flex: 1,
+    },
+    '[data-slot="input-group"] > [data-slot="button"]': {
+      borderStartStartRadius: 0,
+      borderEndStartRadius: 0,
+      marginInlineStart: '-1px',
+    },
+    '[data-slot="code"]': {
+      margin: 0,
+      padding: '0.9rem 1rem',
+      borderRadius: 'var(--fl-radius)',
+      background: '#14171d',
+      color: '#e6e9ef',
+      fontFamily: 'ui-monospace, "SF Mono", monospace',
+      fontSize: '0.85rem',
+      overflowX: 'auto',
+      width: '100%',
+    },
+
     // ── Controlled components ──
     '[data-slot="checkbox"], [data-slot="radio"]': {
       display: 'inline-flex',

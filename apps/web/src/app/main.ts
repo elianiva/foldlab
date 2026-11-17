@@ -64,7 +64,11 @@ export const Model = Schema.Struct({
   anchorId: Schema.String,
   /** The gallery page, from the URL hash. */
   page: Schema.String,
-  demo: Schema.Struct({ loading: Schema.Boolean, pagination: Schema.Finite }),
+  demo: Schema.Struct({
+    loading: Schema.Boolean,
+    pagination: Schema.Finite,
+    revealed: Schema.Boolean,
+  }),
   name: Text,
   owner: Schema.Struct({ email: Text, assignee: Text }),
   schedule: Schema.Struct({ start: Text, end: Text }),
@@ -133,6 +137,7 @@ export const Message = defineMessageUnion({
   ClickedSubmit: {},
   ChangedPage: { page: Schema.String },
   ToggledLoading: {},
+  ToggledReveal: {},
   ChangedDemoPage: { value: Schema.Finite },
 })
 export type Message = typeof Message.Type
@@ -152,7 +157,7 @@ export const init = (flags: Flags) => ({
   model: Model.make({
     anchorId: flags.anchorId,
     page: flags.page,
-    demo: { loading: false, pagination: 1 },
+    demo: { loading: false, pagination: 1, revealed: false },
     name: FieldValidation.NotValidated({ value: '' }),
     owner: {
       email: FieldValidation.NotValidated({ value: '' }),
@@ -320,6 +325,9 @@ export const update = (model: Model, message: Message): Update.Return<Model, Mes
     ChangedPage: ({ page }) => ({ model: { ...model, page } }),
     ToggledLoading: () => ({
       model: { ...model, demo: { ...model.demo, loading: !model.demo.loading } },
+    }),
+    ToggledReveal: () => ({
+      model: { ...model, demo: { ...model.demo, revealed: !model.demo.revealed } },
     }),
     ChangedDemoPage: ({ value }) => ({
       model: { ...model, demo: { ...model.demo, pagination: value } },
