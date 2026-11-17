@@ -41,6 +41,7 @@ export type Message = typeof Message.Type
 
 export type Tag =
   | 'div'
+  | 'nav'
   | 'button'
   | 'input'
   | 'img'

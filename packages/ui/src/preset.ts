@@ -1756,6 +1756,17 @@ const polish = {
   '[data-slot="avatar"]': { overflow: 'hidden' },
   '[data-slot="avatar-fallback"]': { display: 'inline-flex' },
 
+  // ── Pagination ──
+  '[data-slot="pagination-link"], [data-slot="pagination-previous"], [data-slot="pagination-next"], [data-slot="pagination-first"], [data-slot="pagination-last"]':
+    { minWidth: '2rem', padding: '0.4rem 0.6rem' },
+  '[data-slot="pagination-link"][data-current], [data-slot="pagination-link"][aria-current="page"]':
+    {
+      background: 'linear-gradient(var(--primary-fill-top), var(--primary-fill-bottom))',
+      boxShadow: 'var(--elev-primary)',
+      color: 'var(--primary-foreground)',
+    },
+  '[data-slot="pagination-ellipsis"]': { padding: '0 0.4rem', color: 'var(--muted-foreground)' },
+
   // ── Attachment ──
   '[data-slot="attachment"] > div': { flex: 1, minWidth: 0 },
   '[data-slot="attachment-icon"]': {
