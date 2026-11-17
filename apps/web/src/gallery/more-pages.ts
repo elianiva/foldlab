@@ -550,14 +550,23 @@ export const morePages: ReadonlyArray<Page> = [
     id: 'code',
     title: 'Code',
     description: 'A block of source.',
-    render: ({ h }) => [
-      sectionOf(
-        h,
-        'Block',
-        [E.code(h, 'const kit = Ui.define({ dialog: Dialog.component })\nawait deploy(kit)')],
-        'E.code(h, source)',
-        stacked,
-      ),
-    ],
+    render: ({ h, model }) => {
+      const source = 'const kit = Ui.define({ dialog: Dialog.component })\nawait deploy(kit)'
+      return [
+        sectionOf(
+          h,
+          'Block',
+          [
+            E.code(h, source, {
+              language: 'ts',
+              copied: model.demo.copied === source,
+              onCopy: h.OnClick(Message.ClickedCopy({ text: source })),
+            }),
+          ],
+          'E.code(h, source, { language, copied, onCopy })',
+          stacked,
+        ),
+      ]
+    },
   },
 ]

@@ -243,8 +243,34 @@ export const inputArea = <M>(
 export const inputGroup = <M>(h: HtmlBuilder<M>, children: Children): Html =>
   h.div([...data(h, 'input-group'), h.Role('group')], children)
 
-export const code = <M>(h: HtmlBuilder<M>, source: string): Html =>
-  h.pre(data(h, 'code'), [h.code([], [source])])
+const copyButton = <M>(h: HtmlBuilder<M>, copied: boolean, onCopy: Attribute<M>): Html =>
+  h.button(
+    [
+      ...data(h, 'copy-button', { copied }),
+      h.Type('button'),
+      h.AriaLabel(copied ? 'Copied' : 'Copy'),
+      onCopy,
+    ],
+    [],
+  )
+
+/** A block of source. With `copy`, a header names the language and carries an icon button. */
+export const code = <M>(
+  h: HtmlBuilder<M>,
+  source: string,
+  copy?: Readonly<{ language: string; copied: boolean; onCopy: Attribute<M> }>,
+): Html => {
+  const pre = h.pre(data(h, 'code'), [h.code([], [source])])
+  return copy === undefined
+    ? pre
+    : h.div(data(h, 'code-block'), [
+        h.div(data(h, 'code-header'), [
+          h.span([], [copy.language]),
+          copyButton(h, copy.copied, copy.onCopy),
+        ]),
+        pre,
+      ])
+}
 
 export const tableOfContents = <M>(
   h: HtmlBuilder<M>,
@@ -310,18 +336,7 @@ export const copyText = <M>(
 ): Html =>
   h.span(
     [...data(h, 'copy-text', { inline: props.inline })],
-    [
-      h.code([], [props.text]),
-      h.button(
-        [
-          ...data(h, 'copy-button'),
-          h.Type('button'),
-          h.AriaLabel(props.copied ? 'Copied' : 'Copy'),
-          onCopy,
-        ],
-        [props.copied ? 'Copied' : 'Copy'],
-      ),
-    ],
+    [h.code([], [props.text]), copyButton(h, props.copied, onCopy)],
   )
 
 /** A node in a flow diagram: a titled box. Connect them with `flowArrow`. */
