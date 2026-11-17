@@ -120,7 +120,7 @@ export const stacked = css({
   padding: '1.5rem 1.1rem',
 })
 
-export type NavEntry = Readonly<{ id: string; title: string }>
+export type NavEntry = Readonly<{ href: string; title: string }>
 
 export const shell = <M>(
   h: HtmlBuilder<M>,
@@ -147,8 +147,8 @@ export const shell = <M>(
                 h.a(
                   [
                     h.Class(navLinkCls),
-                    h.Href(`#/${entry.id}`),
-                    ...(entry.id === props.current ? [h.AriaCurrent('page')] : []),
+                    h.Href(entry.href),
+                    ...(entry.href === props.current ? [h.AriaCurrent('page')] : []),
                   ],
                   [entry.title],
                 ),

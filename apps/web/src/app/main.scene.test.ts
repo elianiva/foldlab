@@ -3,13 +3,14 @@ import { Message as UiMessage } from '@foldlab/ui'
 import { Scene } from 'foldkit/test'
 import { test } from 'vitest'
 import { init, Message, update, view } from './main.ts'
+import { urlOf } from './route.ts'
 
 const lift = (message: UiMessage) => Message.GotUiMessage({ message })
 
 // Scene has no `input` step, so a typed value cannot be driven. The invalid
 // state is reached through `update`, and Scene checks what the view renders.
 const invalidEmail = update(
-  init({ anchorId: '', page: 'form' }).model,
+  init({ anchorId: '' }, urlOf('/form')).model,
   Message.ChangedEmail({ value: 'nope' }),
 ).model
 
@@ -29,7 +30,7 @@ test('scene: an invalid field wires its error and description onto the control',
 test('scene: the assignee input is Foldkit-owned text entry; core keeps ARIA and keys', () => {
   Scene.scene(
     { update, view },
-    Scene.given(init({ anchorId: '', page: 'form' }).model),
+    Scene.given(init({ anchorId: '' }, urlOf('/form')).model),
     resolveBinds(lift),
     Scene.expect(Scene.selector('[data-slot="combobox-input"]')).toHaveHandler('input'),
     Scene.expect(Scene.selector('[data-slot="combobox-input"]')).toHaveAttr(

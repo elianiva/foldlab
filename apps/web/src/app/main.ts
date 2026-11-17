@@ -1,5 +1,5 @@
 import { Effect, Queue, Schema, Stream } from 'effect'
-import { Command, FieldValidation, Subscription, Update } from 'foldkit'
+import { Command, FieldValidation, Navigation, Subscription, Update, Url } from 'foldkit'
 import { Dialog as FkDialog } from '@foldkit/ui'
 import type { Document, Html, HtmlBuilder } from 'foldkit/html'
 import { defineMessageUnion } from 'foldkit/message'
@@ -43,7 +43,11 @@ import {
 } from '@foldlab/ui'
 import { css } from '../../styled-system/css'
 import { shell } from '../gallery/layout.ts'
-import { FORM_PAGE, galleryPages, pageOfHash } from '../gallery/pages.ts'
+import { overviewPage } from '../gallery/overview.ts'
+import { galleryPages } from '../gallery/pages.ts'
+import { AppRoute, pathOf, urlToRoute } from './route.ts'
+
+const { UrlRequest } = Navigation
 
 // The toaster belongs to the app, like `kit`.
 export const toaster = Toast.makeToaster()
@@ -99,13 +103,13 @@ const Text = FieldValidation.Field(Schema.String)
 const Strings = FieldValidation.Field(Schema.Array(Schema.String))
 
 // The id `kit.layer(container)` returned. The entry puts it in Flags, so no view guesses it.
-export const Flags = Schema.Struct({ anchorId: Schema.String, page: Schema.String })
+export const Flags = Schema.Struct({ anchorId: Schema.String })
 export type Flags = typeof Flags.Type
 
 export const Model = Schema.Struct({
   anchorId: Schema.String,
-  /** The gallery page, from the URL hash. */
-  page: Schema.String,
+  /** Where the URL points. Foldkit parses it, so a link and the back button both land here. */
+  route: AppRoute,
   demo: Schema.Struct({
     loading: Schema.Boolean,
     pagination: Schema.Finite,
@@ -182,7 +186,9 @@ export const Message = defineMessageUnion({
   ClickedOpenFkDialog: {},
   ClickedToggleDialogs: {},
   ClickedSubmit: {},
-  ChangedPage: { page: Schema.String },
+  ClickedLink: { request: UrlRequest },
+  ChangedUrl: { url: Url.Url },
+  CompletedNavigation: {},
   ToggledLoading: {},
   ToggledReveal: {},
   ClickedCopy: { text: Schema.String },
@@ -205,6 +211,18 @@ export const CopyText = Command.define('CopyText', {
     Effect.promise(() => navigator.clipboard.writeText(text).catch(() => undefined)).pipe(
       Effect.as(Message.CompletedCopy({ text })),
     ),
+})
+
+export const Navigate = Command.define('Navigate', {
+  args: { to: Schema.String },
+  messages: [Message.CompletedNavigation],
+  execute: ({ to }) => Navigation.pushUrl(to).pipe(Effect.as(Message.CompletedNavigation())),
+})
+
+export const LoadPage = Command.define('LoadPage', {
+  args: { href: Schema.String },
+  messages: [Message.CompletedNavigation],
+  execute: ({ href }) => Navigation.load(href).pipe(Effect.as(Message.CompletedNavigation())),
 })
 
 export const ShowToast = Command.define('ShowToast', {
@@ -234,10 +252,10 @@ export const CheckName = Command.define('CheckName', {
 
 // ── Init / update ───────────────────────────────────────────────────────────
 
-export const init = (flags: Flags) => ({
+export const init = (flags: Flags, url: Url.Url) => ({
   model: Model.make({
     anchorId: flags.anchorId,
-    page: flags.page,
+    route: urlToRoute(url),
     demo: {
       loading: false,
       pagination: 1,
@@ -445,7 +463,13 @@ export const update = (model: Model, message: Message): Update.Return<Model, Mes
         ),
       }
     },
-    ChangedPage: ({ page }) => ({ model: { ...model, page } }),
+    ClickedLink: ({ request }) =>
+      UrlRequest.match<Update.Return<Model, Message, UiRegistry>>(request, {
+        Internal: ({ url }) => ({ model, commands: [Navigate({ to: Url.toString(url) })] }),
+        External: ({ href }) => ({ model, commands: [LoadPage({ href })] }),
+      }),
+    ChangedUrl: ({ url }) => ({ model: { ...model, route: urlToRoute(url) } }),
+    CompletedNavigation: () => ({ model }),
     ToggledLoading: () => ({
       model: { ...model, demo: { ...model.demo, loading: !model.demo.loading } },
     }),
@@ -834,52 +858,63 @@ export const subscriptions = Subscription.make<Model, Message>()((entry) => ({
         ),
     },
   ),
-  hash: entry(
-    { on: Schema.Boolean },
-    {
-      modelToDependencies: () => ({ on: true }),
-      dependenciesToStream: () =>
-        Stream.callback<Message>((queue) =>
-          Effect.acquireRelease(
-            Effect.sync(() => {
-              const listener = () =>
-                Queue.offerUnsafe(queue, Message.ChangedPage({ page: pageOfHash(location.hash) }))
-              addEventListener('hashchange', listener)
-              return listener
-            }),
-            (listener) => Effect.sync(() => removeEventListener('hashchange', listener)),
-          ).pipe(Effect.andThen(Effect.never)),
-        ),
-    },
-  ),
 }))
 
 export const view = (model: Model, h: HtmlBuilder<Message>): Document => {
   const ui = uiOf(model)
   const groups = [
-    { name: 'Examples', entries: [{ id: FORM_PAGE, title: 'Project form' }] },
+    {
+      name: 'Examples',
+      entries: [
+        { href: pathOf(AppRoute.Overview()), title: 'Overview' },
+        { href: pathOf(AppRoute.Form()), title: 'Project form' },
+      ],
+    },
     {
       name: 'Components',
-      entries: galleryPages.map(({ id, title }) => ({ id, title })),
+      entries: galleryPages.map(({ id, title }) => ({
+        href: pathOf(AppRoute.Component({ id })),
+        title,
+      })),
     },
   ]
-  const page = galleryPages.find((entry) => entry.id === model.page)
-  const isForm = model.page === FORM_PAGE || page === undefined
+  const { current, title, description, content } = AppRoute.match<{
+    current: string
+    title: string
+    description: string
+    content: ReadonlyArray<Html>
+  }>(model.route, {
+    Overview: () => ({
+      current: pathOf(model.route),
+      title: 'Overview',
+      description: 'Every component in the kit.',
+      content: overviewPage(h, galleryPages),
+    }),
+    Form: () => ({
+      current: pathOf(model.route),
+      title: 'Project form',
+      description:
+        'Nested fields, cross-field and async validation, a combobox and a multi-select, all through the adapter.',
+      content: [h.div([h.Class(stack)], formPage(h, model, ui))],
+    }),
+    Component: ({ id }) => {
+      const page = galleryPages.find((entry) => entry.id === id)
+      return {
+        current: pathOf(model.route),
+        title: page?.title ?? 'Not found',
+        description: page?.description ?? `No component called "${id}".`,
+        content: page?.render({ h, model, ui }) ?? [],
+      }
+    },
+    NotFound: ({ path }) => ({
+      current: '',
+      title: 'Not found',
+      description: `Nothing lives at ${path}.`,
+      content: [],
+    }),
+  })
   return {
-    title: 'foldlab',
-    body: shell(
-      h,
-      {
-        current: isForm ? FORM_PAGE : model.page,
-        groups,
-        title: isForm ? 'Project form' : (page?.title ?? ''),
-        description: isForm
-          ? 'Nested fields, cross-field and async validation, a combobox and a multi-select, all through the adapter.'
-          : (page?.description ?? ''),
-      },
-      isForm
-        ? [h.div([h.Class(stack)], formPage(h, model, ui))]
-        : (page?.render({ h, model, ui }) ?? []),
-    ),
+    title: `${title} · foldlab`,
+    body: shell(h, { current, groups, title, description }, content),
   }
 }

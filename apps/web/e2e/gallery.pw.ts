@@ -4,7 +4,7 @@
 import { expect, test } from '@playwright/test'
 
 test('controls bind after navigating from another page', async ({ page }) => {
-  await page.goto('/#/checkbox')
+  await page.goto('/components/checkbox')
   await expect(page.locator('[data-slot="checkbox"]').first()).toBeVisible()
 
   await page.getByRole('link', { name: 'Switch' }).click()

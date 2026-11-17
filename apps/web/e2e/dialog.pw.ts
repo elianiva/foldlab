@@ -16,7 +16,7 @@ const lock = (page: Page) =>
 const unlocked = { overflow: '', marker: false, inert: 0 }
 
 test.beforeEach(async ({ page }) => {
-  await page.goto('/#/form')
+  await page.goto('/form')
   await expect(page.getByRole('button', { name: 'Open (ui-sdk adapter)' })).toBeVisible()
   // Part of the claim: nothing in this page failed to bind.
   await expect(page.locator('[data-foldlab-unbound]')).toHaveCount(0)
