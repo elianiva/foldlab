@@ -1,5 +1,5 @@
 // Pages for the remaining behavior-free elements from foldcn.
-import { Elements as E } from '@foldlab/ui'
+import { Avatar, Elements as E, Progress, Separator } from '@foldlab/ui'
 import { sectionOf, stacked } from './layout.ts'
 import type { Page } from './types.ts'
 
@@ -80,24 +80,40 @@ export const extraPages: ReadonlyArray<Page> = [
     id: 'avatar',
     title: 'Avatar',
     description: 'A person, as initials.',
-    render: ({ h }) => [
-      sectionOf(
-        h,
-        'Sizes',
-        [
-          E.avatar(h, { name: 'Ada Lovelace', size: 'sm' }),
-          E.avatar(h, { name: 'Grace Hopper' }),
-          E.avatar(h, { name: 'Alan Turing', size: 'lg' }),
-        ],
-        "E.avatar(h, { name: 'Ada Lovelace' })",
-      ),
-    ],
+    render: ({ h, model, ui }) => {
+      const initials = (name: string) =>
+        name
+          .split(/\s+/)
+          .map((word) => word.charAt(0))
+          .join('')
+          .toUpperCase()
+      const one = (state: typeof model.ui.avatarAda, name: string, size: string) => {
+        const av = Avatar.parts(state, h, ui)
+        return av.root(
+          {},
+          [h.AriaLabel(name), h.Attribute('data-size', size)],
+          [av.fallback({}, [], [initials(name)])],
+        )
+      }
+      return [
+        sectionOf(
+          h,
+          'Sizes',
+          [
+            one(model.ui.avatarAda, 'Ada Lovelace', 'sm'),
+            one(model.ui.avatarGrace, 'Grace Hopper', 'base'),
+            one(model.ui.avatarAlan, 'Alan Turing', 'lg'),
+          ],
+          'const av = Avatar.parts(state, h, ui)\nav.root({}, [], [av.image({}, [], []), av.fallback({}, [], [initials])])',
+        ),
+      ]
+    },
   },
   {
     id: 'item',
     title: 'Item',
     description: 'A row with a title, description and slots.',
-    render: ({ h }) => [
+    render: ({ h, model, ui }) => [
       sectionOf(
         h,
         'Basic',
@@ -105,7 +121,14 @@ export const extraPages: ReadonlyArray<Page> = [
           E.item(
             h,
             { title: 'api-gateway', description: 'Updated 2h ago' },
-            E.avatar(h, { name: 'AG' }),
+            (() => {
+              const av = Avatar.parts(model.ui.avatarItem, h, ui)
+              return av.root(
+                {},
+                [h.AriaLabel('api-gateway'), h.Attribute('data-size', 'base')],
+                [av.fallback({}, [], ['AG'])],
+              )
+            })(),
             E.badge(h, 'success', ['Live']),
           ),
         ],
@@ -242,29 +265,35 @@ export const extraPages: ReadonlyArray<Page> = [
     id: 'progress',
     title: 'Progress',
     description: 'How far a task has got.',
-    render: ({ h }) => [
-      sectionOf(
-        h,
-        'Basic',
-        [E.progress(h, { value: 60, label: 'Upload' })],
-        "E.progress(h, { value: 60, label: 'Upload' })",
-        stacked,
-      ),
-    ],
+    render: ({ h, model, ui }) => {
+      const p = Progress.parts(model.ui.progressUpload, h, ui)
+      return [
+        sectionOf(
+          h,
+          'Basic',
+          [p.root({}, [h.AriaLabel('Upload')], [p.track({}, [], [p.indicator({}, [], [])])])],
+          'const p = Progress.parts(state, h, ui)\np.root({}, [], [p.track({}, [], [p.indicator({}, [], [])])])',
+          stacked,
+        ),
+      ]
+    },
   },
   {
     id: 'separator',
     title: 'Separator',
     description: 'A divider.',
-    render: ({ h }) => [
-      sectionOf(
-        h,
-        'Horizontal',
-        [E.text(h, 'body', ['Above']), E.separator(h), E.text(h, 'body', ['Below'])],
-        'E.separator(h)',
-        stacked,
-      ),
-    ],
+    render: ({ h, model, ui }) => {
+      const sep = Separator.parts(model.ui.separator, h, ui)
+      return [
+        sectionOf(
+          h,
+          'Horizontal',
+          [E.text(h, 'body', ['Above']), sep.root({}, [], []), E.text(h, 'body', ['Below'])],
+          'Separator.parts(state, h, ui).root({}, [], [])',
+          stacked,
+        ),
+      ]
+    },
   },
   {
     id: 'scroll-area',

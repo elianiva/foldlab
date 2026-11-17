@@ -8,6 +8,7 @@ import {
   Command,
   Dialog,
   Elements as E,
+  Toolbar,
 } from '@foldlab/ui'
 import type { Html } from 'foldkit/html'
 import { Message } from '../app/main.ts'
@@ -471,20 +472,27 @@ export const morePages: ReadonlyArray<Page> = [
     id: 'toolbar',
     title: 'Toolbar',
     description: 'Groups related actions.',
-    render: ({ h }) => [
-      sectionOf(
-        h,
-        'Basic',
-        [
-          E.toolbar(h, [
-            E.button(h, { variant: 'ghost', size: 'sm' }, [], ['Bold']),
-            E.button(h, { variant: 'ghost', size: 'sm' }, [], ['Italic']),
-            E.button(h, { variant: 'ghost', size: 'sm' }, [], ['Link']),
-          ]),
-        ],
-        "E.toolbar(h, [E.button(h, { variant: 'ghost', size: 'sm' }, [], ['Bold'])])",
-      ),
-    ],
+    render: ({ h, model, ui }) => {
+      const t = Toolbar.parts(model.ui.toolbar, h, ui)
+      const tool = (label: string) =>
+        t.button(
+          {},
+          [
+            h.Attribute('data-slot', 'button'),
+            h.Attribute('data-variant', 'ghost'),
+            h.Attribute('data-size', 'sm'),
+          ],
+          [label],
+        )
+      return [
+        sectionOf(
+          h,
+          'Basic',
+          [t.root({}, [], [tool('Bold'), tool('Italic'), tool('Link')])],
+          'const t = Toolbar.parts(state, h, ui)\nt.root({}, [], [t.button({}, [], [label])])',
+        ),
+      ]
+    },
   },
   {
     id: 'input-area',

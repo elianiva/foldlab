@@ -1730,6 +1730,32 @@ const polish = {
   '[data-slot="button-group"] > [data-slot="button"][data-variant="primary"] + [data-slot="button"]':
     { boxShadow: 'none' },
 
+  // ── Gauges: ui-sdk renders the track and the indicator as parts ──
+  '[data-slot="meter"], [data-slot="progress"]': {
+    display: 'flex',
+    flexDirection: 'column',
+    gap: '0.35rem',
+    height: 'auto',
+    background: 'transparent',
+    boxShadow: 'none',
+    overflow: 'visible',
+  },
+  '[data-slot="progress-track"]': {
+    height: '8px',
+    borderRadius: '999px',
+    background: 'var(--well)',
+    boxShadow: 'var(--elev-well)',
+    overflow: 'hidden',
+  },
+  '[data-slot="progress-indicator"]': {
+    height: '100%',
+    borderRadius: '999px',
+    background: 'var(--primary)',
+    transition: `width 300ms ${ease}`,
+  },
+  '[data-slot="avatar"]': { overflow: 'hidden' },
+  '[data-slot="avatar-fallback"]': { display: 'inline-flex' },
+
   // ── Attachment ──
   '[data-slot="attachment"] > div': { flex: 1, minWidth: 0 },
   '[data-slot="attachment-icon"]': {

@@ -1,10 +1,16 @@
 // Pages for elements that need no behavior. The code under each preview is the
 // call that produced it.
-import { Elements as E } from '@foldlab/ui'
+import { Elements as E, Meter } from '@foldlab/ui'
+import { css } from '../../styled-system/css'
 import { Message } from '../app/main.ts'
 import { sectionOf, stacked } from './layout.ts'
 import type { Page } from './types.ts'
 
+const meterHeaderCls = css({
+  display: 'flex',
+  justifyContent: 'space-between',
+  fontSize: '0.85rem',
+})
 const code = (...lines: ReadonlyArray<string>) => lines.join('\n')
 
 export const staticPages: ReadonlyArray<Page> = [
@@ -248,15 +254,32 @@ export const staticPages: ReadonlyArray<Page> = [
     id: 'meter',
     title: 'Meter',
     description: 'A value inside a known range.',
-    render: ({ h }) => [
-      sectionOf(
-        h,
-        'Basic',
-        [E.meter(h, { value: 35, label: 'CPU' }), E.meter(h, { value: 82, label: 'Memory' })],
-        "E.meter(h, { value: 35, label: 'CPU' })",
-        stacked,
-      ),
-    ],
+    render: ({ h, model, ui }) => {
+      const row = (state: typeof model.ui.meterCpu, label: string) => {
+        const m = Meter.parts(state, h, ui)
+        const percent = Math.round(((state.value - state.min) / (state.max - state.min)) * 100)
+        return m.root(
+          {},
+          [h.AriaLabel(label)],
+          [
+            h.div(
+              [h.Class(meterHeaderCls)],
+              [m.label({}, [], [label]), m.value({}, [], [`${percent}%`])],
+            ),
+            m.track({}, [], [m.indicator({}, [], [])]),
+          ],
+        )
+      }
+      return [
+        sectionOf(
+          h,
+          'Basic',
+          [row(model.ui.meterCpu, 'CPU'), row(model.ui.meterMemory, 'Memory')],
+          'const m = Meter.parts(state, h, ui)\nm.root({}, [], [m.label({}, [], [label]), m.value({}, [], [text]), m.track({}, [], [m.indicator({}, [], [])])])',
+          stacked,
+        ),
+      ]
+    },
   },
   {
     id: 'pagination',
