@@ -96,8 +96,11 @@ export const component = defineComponent<State, Slot>({
     open: state.open,
     multiple: state.multiple,
     items: state.items.map((item) => ({ ...item })),
-    itemToValue: (item: Item) => item.value,
-    itemToLabel: (item: Item) => item.label,
+    // ui-sdk calls these with an item and also with a bare selected value (a string),
+    // for example for a selected item the current filter hides. Handle both.
+    itemToValue: (item: Item | string) => (typeof item === 'string' ? item : item.value),
+    itemToLabel: (item: Item | string) =>
+      typeof item === 'string' ? labelOf(state, item) : item.label,
   }),
   controlled: ['value', 'query', 'open'],
   callbacks: { onValueChange: 'value', onQueryChange: 'query', onOpenChange: 'open' },

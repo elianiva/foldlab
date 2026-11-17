@@ -45,7 +45,9 @@ const view = (model: Model, h: HtmlBuilder<Message>): Document => {
                 parts.list(
                   {},
                   [],
-                  items.map((item) => parts.item({ value: item.value }, [], [item.label])),
+                  items.map((item) =>
+                    parts.item({ value: item.value, label: item.label }, [], [item.label]),
+                  ),
                 ),
               ],
             ),

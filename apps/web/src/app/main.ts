@@ -407,7 +407,11 @@ const comboField = (
                 visible.length === 0
                   ? [box.empty({}, [], ['No matches'])]
                   : visible.map((item) =>
-                      box.item({ value: item.value }, [], [box['item-text']({}, [], [item.label])]),
+                      box.item(
+                        { value: item.value, label: item.label },
+                        [],
+                        [box['item-text']({ text: item.label }, [], [item.label])],
+                      ),
                     ),
               ),
             ],

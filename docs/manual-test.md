@@ -23,6 +23,8 @@ Run the demo (`cd apps/web && pnpm dev`, or the portal service) and go down this
 1. Open it and click Slack, then SMS quickly. "Selected: Slack, SMS", with no duplicates and none lost.
 2. Click Slack again. It deselects.
 3. The list stays open between picks.
+4. Type "sl", press Arrow Down, then Enter: Slack is picked. Enter alone does nothing, because nothing is highlighted yet.
+5. Type while an item is already selected. Nothing throws (this crashed the app before: item parts need a `text` prop, and `itemToValue` and `itemToLabel` must accept a bare value).
 
 ## Field wiring
 
