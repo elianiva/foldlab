@@ -49,3 +49,16 @@ test('no kit source holds module-level mutable state', () => {
   )
   expect(offenders).toEqual([])
 })
+
+// The adapter is headless: behavior and attributes only. Themes live in @foldlab/ui.
+test('no adapter source imports styling', () => {
+  const sources = readdirSync(here, { recursive: true, encoding: 'utf8' }).filter(
+    (file) => file.endsWith('.ts') && !file.endsWith('.test.ts'),
+  )
+  for (const file of sources) {
+    expect(readFileSync(join(here, file), 'utf8'), file).not.toMatch(
+      /@foldlab\/ui|@pandacss|styled-system/,
+    )
+  }
+  expect(JSON.stringify(manifest)).not.toMatch(/pandacss|@foldlab\/ui/)
+})

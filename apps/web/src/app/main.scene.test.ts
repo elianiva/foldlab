@@ -1,5 +1,5 @@
-import { resolveBinds } from '@foldlab/ui/testing'
-import { Message as UiMessage } from '@foldlab/ui'
+import { resolveBinds } from '@foldlab/adapter/testing'
+import { Message as UiMessage } from '@foldlab/adapter'
 import { Scene } from 'foldkit/test'
 import { test } from 'vitest'
 import { init, Message, update, view } from './main.ts'

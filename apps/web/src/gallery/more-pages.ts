@@ -7,9 +7,9 @@ import {
   Combobox,
   Command,
   Dialog,
-  Elements as E,
   Toolbar,
-} from '@foldlab/ui'
+} from '@foldlab/adapter'
+import { Elements as E } from '@foldlab/ui'
 import type { Html } from 'foldkit/html'
 import { Message } from '../app/main.ts'
 import { sectionOf, stacked } from './layout.ts'

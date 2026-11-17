@@ -1,6 +1,6 @@
 // Popup components. Their content leaves the page flow (core positions it), so each
 // one carries a lifecycle bit in the Model: see "Lifecycle state" in docs/adapter-api.md.
-import { Menu, Popover, Select, Tooltip } from '@foldlab/ui'
+import { Menu, Popover, Select, Tooltip } from '@foldlab/adapter'
 import { sectionOf, stacked } from './layout.ts'
 import type { Page } from './types.ts'
 

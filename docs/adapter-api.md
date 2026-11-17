@@ -2,7 +2,7 @@
 
 This page compares the `@foldlab/ui` adapter with the ui-sdk React, Vue and Svelte adapters, for a combobox and an accordion. It then lists where the shapes diverge, and why.
 
-`@foldlab/ui` pins `@ui-sdk/core@0.1.0-beta.7`. The adapter reads `@ui-sdk/core/renderer`, which ui-sdk says is not public API. Only two files import it:
+`@foldlab/adapter` pins `@ui-sdk/core@0.1.0-beta.7`. The adapter reads `@ui-sdk/core/renderer`, which ui-sdk says is not public API. Only two files import it:
 
 - `packages/ui/src/internal/render.ts` – the render phase.
 - `packages/ui/src/internal/bind.ts` – the bind phase.
@@ -72,7 +72,7 @@ Model slice ──options()──► render phase (pure given the Model) ──�
 </Accordion>
 ```
 
-**Foldkit** (`@foldlab/ui`)
+**Foldkit** (`@foldlab/adapter`)
 
 ```ts
 // Model
@@ -283,7 +283,7 @@ Toast, drawer, menu, popover and tooltip all fit this rule. Each component's sec
 
 ## Scope
 
-`@foldlab/ui` serves a throwaway-app kit, not third parties. The `Binding` fields and the four Messages stay as they are and change only when a component needs it. Dialog was the first component to need a change (below).
+`@foldlab/adapter` serves a throwaway-app kit, not third parties. The `Binding` fields and the four Messages stay as they are and change only when a component needs it. Dialog was the first component to need a change (below).
 
 ## Dialog
 
@@ -312,7 +312,7 @@ The nested confirm dialog sits inside the parent's content subtree and gets its 
 
 ### Numbers
 
-|                          | Adapter (`@foldlab/ui`)                                   | `@foldkit/ui` Dialog                                                                              |
+|                          | Adapter (`@foldlab/adapter`)                              | `@foldkit/ui` Dialog                                                                              |
 | ------------------------ | --------------------------------------------------------- | ------------------------------------------------------------------------------------------------- |
 | Component code           | `dialog.ts`: 71 lines (58 without comments)               | none: it is the library                                                                           |
 | Consumer view            | 15 lines, including the nested confirm dialog             | 25 lines (`h.submodel` and `toView`)                                                              |

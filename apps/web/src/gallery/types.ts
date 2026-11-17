@@ -1,5 +1,5 @@
 import type { Html, HtmlBuilder } from 'foldkit/html'
-import type { PartsConfig } from '@foldlab/ui'
+import type { PartsConfig } from '@foldlab/adapter'
 import type { Message, Model } from '../app/main.ts'
 
 /** What a page needs to render: the builder, the Model, and the ui parts config. */

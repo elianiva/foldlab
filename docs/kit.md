@@ -1,4 +1,4 @@
-# Using `@foldlab/ui`
+# Using `@foldlab/adapter` and `@foldlab/ui`
 
 The kit is an adapter from ui-sdk to Foldkit: state in the Model, Messages out, a view that is pure given the Model. This page says what a component author writes, what an app author imports and wires, and what the `Ui` facade removes. [adapter-api.md](adapter-api.md) has the design and the evidence behind it.
 
@@ -34,7 +34,7 @@ The helpers (`defineComponent`, `makeParts`, `makeUpdate`, `primitiveOf`) are no
 
 ## What an app author imports
 
-From `@foldlab/ui`:
+From `@foldlab/adapter` (headless):
 
 | Import                                     | Use                                                                                                            |
 | ------------------------------------------ | -------------------------------------------------------------------------------------------------------------- |
@@ -45,7 +45,7 @@ From `@foldlab/ui`:
 | `specOf`, `syncUiState`, `BindPart`        | The hand-wired path, and what tests resolve.                                                                   |
 | `stamp`                                    | Puts our `data-slot` on another provider's attribute arrays.                                                   |
 
-Also `@foldlab/ui/testing` (`resolveBinds(lift)`) and `@foldlab/ui/preset` (the Panda preset).
+Also `@foldlab/adapter/testing` (`resolveBinds(lift)`). `@foldlab/ui` holds the look: `@foldlab/ui/preset` (the Panda preset) and `Elements`.
 
 ## What an app author wires
 

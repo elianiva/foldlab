@@ -1,7 +1,7 @@
 // Components with no ui-sdk primitive. Foldkit owns them end to end: state in the Model,
 // events through `h.On*`, no Mount. Nothing here is bound, so Scene can drive all of it.
 import { sectionOf, stacked } from './layout.ts'
-import { Sortable } from '@foldlab/ui'
+import { Sortable } from '@foldlab/adapter'
 import { Message } from '../app/main.ts'
 import type { Page } from './types.ts'
 

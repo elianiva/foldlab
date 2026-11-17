@@ -15,7 +15,7 @@ import {
   Resizable,
   ScrollArea,
   Toggle,
-} from '@foldlab/ui'
+} from '@foldlab/adapter'
 import { css } from '../../styled-system/css'
 import { Message } from '../app/main.ts'
 import { sectionOf, stacked } from './layout.ts'

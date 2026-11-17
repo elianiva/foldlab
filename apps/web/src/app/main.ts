@@ -48,7 +48,7 @@ import {
   UiRegistry,
   type PartsConfig,
   stamp,
-} from '@foldlab/ui'
+} from '@foldlab/adapter'
 import { css } from '../../styled-system/css'
 import { shell } from '../gallery/layout.ts'
 import { overviewPage } from '../gallery/overview.ts'

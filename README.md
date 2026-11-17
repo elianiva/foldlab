@@ -34,7 +34,8 @@ Routes are Foldkit's own (`apps/web/src/app/route.ts`): `/`, `/form` and `/compo
 
 ## Apps and packages
 
-- `packages/ui` — the ui-sdk adapter and the Panda preset.
+- `packages/adapter` — the headless ui-sdk adapter for Foldkit: state, parts, bind, no styles.
+- `packages/ui` — the Panda preset and the behavior-free styled elements.
 - `apps/web` — Foldkit application, website Worker, and static assets.
 - `apps/backend` — Effect RPC handlers, the API Worker entry, and the platform adapters.
 - `packages/rpc` — the wire contract: RPC groups, schemas, declared errors, and the API path prefix.

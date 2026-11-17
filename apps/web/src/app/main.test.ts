@@ -1,8 +1,8 @@
 import { Command, given, message, model, story } from 'foldkit/story'
 import { expect, test } from 'vitest'
-import { Combobox, syncUiState } from '@foldlab/ui'
+import { Combobox, syncUiState } from '@foldlab/adapter'
 import { CheckName, init, isFormValid, Message, update } from './main.ts'
-import { Message as UiMessage } from '@foldlab/ui'
+import { Message as UiMessage } from '@foldlab/adapter'
 import { urlOf } from './route.ts'
 
 // A change as bind sends it: a full snapshot of the instance's controlled options.

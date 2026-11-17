@@ -3,7 +3,7 @@ import { Schema } from 'effect'
 import { Runtime } from 'foldkit'
 import type { Document, HtmlBuilder } from 'foldkit/html'
 import { defineMessageUnion } from 'foldkit/message'
-import { Combobox, Message as UiMessage, Ui } from '@foldlab/ui'
+import { Combobox, Message as UiMessage, Ui } from '@foldlab/adapter'
 import './styles.css'
 
 const root = document.getElementById('root') ?? document.body

@@ -1,6 +1,6 @@
 // Pages for components that run through the adapter: their state is in the Model
 // (`model.ui.*`), and the parts come from `Component.parts(state, h, ui)`.
-import { Checkbox, Collapsible, Radio, Slider, Switch, Tabs } from '@foldlab/ui'
+import { Checkbox, Collapsible, Radio, Slider, Switch, Tabs } from '@foldlab/adapter'
 import type { Html, HtmlBuilder } from 'foldkit/html'
 import { css } from '../../styled-system/css'
 import type { Message } from '../app/main.ts'

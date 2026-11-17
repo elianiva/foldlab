@@ -12,6 +12,7 @@
   },
   "dependencies": {
     "@foldkit/vite-plugin": "0.29.0",
+    "@foldlab/adapter": "workspace:*",
     "@foldlab/rpc": "workspace:*",
     "@foldlab/ui": "workspace:*",
     "@sentry/browser": "11.12.0",

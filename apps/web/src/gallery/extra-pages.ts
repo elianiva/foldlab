@@ -1,5 +1,6 @@
 // Pages for the remaining behavior-free elements from foldcn.
-import { Avatar, Elements as E, Progress, Separator } from '@foldlab/ui'
+import { Avatar, Progress, Separator } from '@foldlab/adapter'
+import { Elements as E } from '@foldlab/ui'
 import { sectionOf, stacked } from './layout.ts'
 import type { Page } from './types.ts'
 

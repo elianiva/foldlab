@@ -1,6 +1,7 @@
 // Pages for elements that need no behavior. The code under each preview is the
 // call that produced it.
-import { Elements as E, Meter, Pagination } from '@foldlab/ui'
+import { Meter, Pagination } from '@foldlab/adapter'
+import { Elements as E } from '@foldlab/ui'
 import { css } from '../../styled-system/css'
 import { Message } from '../app/main.ts'
 import { sectionOf, stacked } from './layout.ts'
