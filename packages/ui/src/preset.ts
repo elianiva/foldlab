@@ -1552,6 +1552,307 @@ const kit = {
   '[data-slot="scroll-area-thumb"]': { borderRadius: '999px', background: 'var(--well)' },
 }
 
+const svg = (body: string) =>
+  `url("data:image/svg+xml,${encodeURIComponent(
+    `<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24" fill="none" stroke="black" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">${body}</svg>`,
+  )}")`
+const copyIcon = svg(
+  '<rect x="9" y="9" width="12" height="12" rx="2"/><path d="M5 15V5a2 2 0 0 1 2-2h8"/>',
+)
+const checkIcon = svg('<path d="M4 12.5l5 5L20 6.5"/>')
+const chevronIcon = svg('<path d="M6 9l6 6 6-6"/>')
+
+// Motion follows Emil Kowalski's rules: ease-out curves, short durations, nothing
+// scales from zero, and every transition has a reduced-motion fallback.
+const ease = 'cubic-bezier(0.23, 1, 0.32, 1)'
+const hidden = '[data-closed], [data-starting-style], [data-ending-style]'
+const popups = ['popover', 'menu', 'select', 'combobox', 'hover-card', 'tooltip', 'autocomplete']
+const popupSel = (suffix = '') =>
+  popups.map((p) => `[data-slot="${p}-content"]${suffix}`).join(', ')
+const dialogs = ['dialog', 'alert-dialog']
+const dialogSel = (suffix = '') =>
+  dialogs.map((p) => `[data-slot="${p}-content"]${suffix}`).join(', ')
+const backdropSel = (suffix = '') =>
+  ['dialog', 'alert-dialog', 'drawer'].map((p) => `[data-slot="${p}-backdrop"]${suffix}`).join(', ')
+
+// A tinted glass surface: the highlight, the ring and the glow all take the element's tone.
+const glass = (tone: string) => ({
+  '--tone': tone,
+  background: 'color-mix(in oklab, var(--tone) 11%, oklch(1 0 0 / 0.55))',
+  backdropFilter: 'blur(14px) saturate(1.5)',
+  boxShadow: [
+    'inset 0 1px 0 color-mix(in oklab, var(--tone) 18%, oklch(1 0 0 / 0.95))',
+    'inset 0 0 0 1px color-mix(in oklab, var(--tone) 24%, transparent)',
+    '0 10px 28px -14px color-mix(in oklab, var(--tone) 55%, transparent)',
+  ].join(', '),
+})
+
+const polish = {
+  // ── Glass: alerts, banners, toasts ──
+  '[data-slot="banner"]': { ...glass('var(--info)'), border: 0 },
+  '[data-slot="banner"][data-tone="neutral"]': glass('var(--muted-foreground)'),
+  '[data-slot="banner"][data-tone="success"]': glass('var(--ok)'),
+  '[data-slot="banner"][data-tone="warning"]': glass('var(--warn)'),
+  '[data-slot="banner"][data-tone="error"]': glass('var(--danger)'),
+  '[data-slot="alert"]': glass('var(--muted-foreground)'),
+  '[data-slot="alert"][data-tone="error"]': {
+    ...glass('var(--danger)'),
+    color: 'var(--foreground)',
+  },
+  '[data-slot="alert"][data-tone="error"] [data-slot="alert-title"]': { color: 'var(--danger)' },
+  '[data-slot="toast"]': {
+    ...glass('var(--info)'),
+    padding: '0.8rem 2.4rem 0.8rem 2.3rem',
+    background: 'color-mix(in oklab, var(--tone) 10%, oklch(1 0 0 / 0.82))',
+    transition: `opacity 220ms ${ease}, translate 220ms ${ease}`,
+  },
+  '[data-slot="toast"]::before': {
+    content: '""',
+    position: 'absolute',
+    top: '1.05rem',
+    left: '1rem',
+    width: '0.55rem',
+    height: '0.55rem',
+    borderRadius: '50%',
+    background: 'var(--tone)',
+    boxShadow: '0 0 0 3px color-mix(in oklab, var(--tone) 22%, transparent)',
+  },
+  '[data-slot="toast"][data-type="success"]': { '--tone': 'var(--ok)', borderLeft: 0 },
+  '[data-slot="toast"][data-type="error"]': { '--tone': 'var(--danger)', borderLeft: 0 },
+  '[data-slot="toast"][data-starting-style], [data-slot="toast"][data-ending-style]': {
+    opacity: 0,
+    translate: '0 0.6rem',
+  },
+
+  // ── Panels: accordion and collapsible ──
+  '[data-slot="accordion-panel"], [data-slot="collapsible-panel"]': {
+    padding: 0,
+    overflow: 'hidden',
+    transition: `height 240ms ${ease}, opacity 200ms ${ease}`,
+  },
+  '[data-slot="accordion-panel"]': { height: 'var(--accordion-panel-height)' },
+  '[data-slot="collapsible-panel"]': {
+    height: 'var(--collapsible-panel-height)',
+    marginTop: 0,
+    border: 0,
+    background: 'transparent',
+  },
+  '[data-slot="accordion-panel"][data-starting-style], [data-slot="accordion-panel"][data-ending-style], [data-slot="collapsible-panel"][data-starting-style], [data-slot="collapsible-panel"][data-ending-style]':
+    { height: 0, opacity: 0 },
+  '[data-slot="accordion-panel"] > *': { padding: '0 1rem 0.9rem' },
+  '[data-slot="collapsible-panel"] > *': {
+    margin: '0.6rem 0 0',
+    padding: '0.8rem 1rem',
+    borderRadius: 'var(--fl-radius)',
+    background: 'var(--well)',
+    boxShadow: 'var(--elev-well)',
+    color: 'var(--muted-foreground)',
+  },
+  '[data-slot="accordion-trigger"]': { gap: '1rem', transition: `background 150ms, color 150ms` },
+  [hit('[data-slot="accordion-trigger"]:hover')]: {
+    background: 'var(--muted)',
+    filter: 'none',
+  },
+  '[data-slot="accordion-trigger"]:active:not(:disabled)': { transform: 'none' },
+  '[data-slot="accordion-trigger"]::after': {
+    content: '""',
+    width: '1rem',
+    height: '1rem',
+    flex: 'none',
+    background: 'var(--muted-foreground)',
+    mask: `${chevronIcon} center / contain no-repeat`,
+    transition: `rotate 240ms ${ease}`,
+  },
+  '[data-slot="accordion-trigger"][data-open]::after': { content: '""', rotate: '180deg' },
+
+  // ── Popups: a short fade with a small scale, from the anchor ──
+  [popupSel()]: {
+    transformOrigin: 'var(--transform-origin, top center)',
+    transition: `opacity 150ms ${ease}, scale 150ms ${ease}`,
+  },
+  [hidden
+    .split(', ')
+    .map((c) => popupSel(c))
+    .join(', ')]: { opacity: 0, scale: 0.96 },
+  [popupSel('[data-side="top"]')]: { transformOrigin: 'bottom center' },
+
+  // ── Dialogs and drawers ──
+  [dialogSel()]: {
+    transformOrigin: 'center',
+    transition: `opacity 200ms ${ease}, scale 200ms ${ease}`,
+  },
+  [hidden
+    .split(', ')
+    .map((c) => dialogSel(c))
+    .join(', ')]: { opacity: 0, scale: 0.96 },
+  [backdropSel()]: {
+    backdropFilter: 'blur(3px)',
+    transition: `opacity 200ms ${ease}`,
+  },
+  [hidden
+    .split(', ')
+    .map((c) => backdropSel(c))
+    .join(', ')]: { opacity: 0 },
+  '[data-slot="drawer-content"]': { transition: `opacity 240ms ${ease}, translate 240ms ${ease}` },
+  '[data-slot="drawer-content"][data-closed], [data-slot="drawer-content"][data-starting-style], [data-slot="drawer-content"][data-ending-style]':
+    { opacity: 1, translate: '100% 0' },
+
+  // ── Button group: one raised bar, divided by hairlines ──
+  '[data-slot="button-group"]': {
+    borderRadius: 'var(--fl-radius)',
+    boxShadow: 'var(--elev-raised)',
+    background: 'linear-gradient(var(--raised-top), var(--raised-bottom))',
+    overflow: 'hidden',
+  },
+  '[data-slot="button-group"] > [data-slot="button"]': {
+    background: 'transparent',
+    boxShadow: 'none',
+    marginInlineStart: 0,
+  },
+  '[data-slot="button-group"] > [data-slot="button"] + [data-slot="button"]': {
+    boxShadow: 'inset 1px 0 0 var(--hairline)',
+    marginInlineStart: 0,
+  },
+  [hit('[data-slot="button-group"] > [data-slot="button"]:hover')]: {
+    background: 'var(--accent)',
+    filter: 'none',
+  },
+  '[data-slot="button-group"] > [data-slot="button"]:active:not(:disabled)': { transform: 'none' },
+  '[data-slot="button-group"] > [data-slot="button"][data-variant="primary"]': {
+    background: 'linear-gradient(var(--primary-fill-top), var(--primary-fill-bottom))',
+    boxShadow: 'inset 0 1px 0 oklch(1 0 0 / 0.18)',
+    color: 'var(--primary-foreground)',
+  },
+  [hit('[data-slot="button-group"] > [data-slot="button"][data-variant="primary"]:hover')]: {
+    background: 'linear-gradient(var(--primary-fill-top), var(--primary-fill-bottom))',
+    filter: 'brightness(1.1)',
+  },
+  '[data-slot="button-group"] > [data-slot="button"][data-variant="primary"] + [data-slot="button"]':
+    { boxShadow: 'none' },
+
+  // ── Attachment ──
+  '[data-slot="attachment"] > div': { flex: 1, minWidth: 0 },
+  '[data-slot="attachment-icon"]': {
+    display: 'inline-flex',
+    alignItems: 'center',
+    justifyContent: 'center',
+    flex: 'none',
+    width: '2.1rem',
+    height: '2.1rem',
+    borderRadius: '8px',
+    background: 'var(--well)',
+    boxShadow: 'var(--elev-well)',
+    color: 'var(--muted-foreground)',
+    fontSize: '1.05rem',
+  },
+
+  // ── Fieldset: the legend is the first line of the card ──
+  '[data-slot="fieldset"]': { display: 'block' },
+  '[data-slot="fieldset"] > legend': {
+    float: 'left',
+    width: '100%',
+    padding: 0,
+    margin: '0 0 0.7rem',
+    fontFamily: 'var(--mono)',
+    fontSize: '0.68rem',
+    letterSpacing: '0.1em',
+    textTransform: 'uppercase',
+    color: 'var(--muted-foreground)',
+  },
+  '[data-slot="fieldset"] > :not(legend)': { clear: 'both', display: 'block' },
+  '[data-slot="fieldset"] > :not(legend) + :not(legend)': { marginTop: '0.6rem' },
+
+  // ── Copy: an icon in the corner ──
+  '[data-slot="copy-button"]': {
+    display: 'inline-flex',
+    alignItems: 'center',
+    justifyContent: 'center',
+    flex: 'none',
+    width: '1.7rem',
+    height: '1.7rem',
+    padding: 0,
+    background: 'transparent',
+    boxShadow: 'none',
+    color: 'var(--muted-foreground)',
+  },
+  '[data-slot="copy-button"]::before': {
+    content: '""',
+    width: '0.9rem',
+    height: '0.9rem',
+    background: 'currentColor',
+    mask: `${copyIcon} center / contain no-repeat`,
+  },
+  '[data-slot="copy-button"][data-copied]': { color: 'var(--ok)' },
+  '[data-slot="copy-button"][data-copied]::before': {
+    mask: `${checkIcon} center / contain no-repeat`,
+  },
+  [hit('[data-slot="copy-button"]:hover')]: {
+    background: 'var(--accent)',
+    color: 'var(--foreground)',
+    filter: 'none',
+  },
+  '[data-slot="copy-text"]': { padding: '0.35rem 0.35rem 0.35rem 0.85rem' },
+  '[data-slot="copy-text"][data-inline]': { padding: '0.1rem 0.1rem 0.1rem 0.5rem' },
+  '[data-slot="code-block"]': {
+    width: '100%',
+    overflow: 'hidden',
+    borderRadius: 'var(--fl-radius)',
+    background: 'oklch(0.215 0.0018 260)',
+    boxShadow: 'var(--elev-card)',
+  },
+  '[data-slot="code-header"]': {
+    display: 'flex',
+    alignItems: 'center',
+    justifyContent: 'space-between',
+    padding: '0.3rem 0.4rem 0.3rem 1rem',
+    borderBottom: '1px solid oklch(1 0 0 / 0.08)',
+    color: 'oklch(0.7 0.01 260)',
+    fontFamily: 'var(--mono)',
+    fontSize: '0.68rem',
+    letterSpacing: '0.1em',
+    textTransform: 'uppercase',
+  },
+  '[data-slot="code-header"] [data-slot="copy-button"]': { color: 'oklch(0.75 0.01 260)' },
+  [hit('[data-slot="code-header"] [data-slot="copy-button"]:hover')]: {
+    background: 'oklch(1 0 0 / 0.1)',
+    color: 'oklch(0.98 0 0)',
+  },
+  '[data-slot="code-header"] [data-slot="copy-button"][data-copied]': {
+    color: 'oklch(0.8 0.15 155)',
+  },
+  '[data-slot="code-block"] > [data-slot="code"]': { borderRadius: 0 },
+
+  // ── Drag and drop: the gap shows where the item will land ──
+  '[data-slot="sortable-item"]': { transition: 'background 150ms, box-shadow 150ms' },
+  '[data-slot="sortable-item"][data-dragging]': {
+    opacity: 1,
+    color: 'transparent',
+    background: 'var(--well)',
+    boxShadow: 'var(--elev-well)',
+    outline: '1.5px dashed color-mix(in oklab, var(--foreground) 30%, transparent)',
+    outlineOffset: '-1.5px',
+  },
+
+  // ── Menubar ──
+  '[data-slot="menubar"] [data-slot="menu-trigger"]': {
+    background: 'transparent',
+    boxShadow: 'none',
+    padding: '0.3rem 0.7rem',
+  },
+  [hit('[data-slot="menubar"] [data-slot="menu-trigger"]:hover')]: {
+    background: 'var(--accent)',
+    filter: 'none',
+  },
+  '[data-slot="menubar"] [data-slot="menu-trigger"][aria-expanded="true"]': {
+    background: 'var(--accent)',
+  },
+  '[data-slot="menubar"] [data-slot="menu-trigger"]:active:not(:disabled)': { transform: 'none' },
+
+  '@media (prefers-reduced-motion: reduce)': {
+    '[data-slot] ': { transitionDuration: '1ms !important' },
+  },
+}
+
 const merge = (a: Rules, b: Rules): Rules => {
   const out: Rules = { ...a }
   for (const [selector, rule] of Object.entries(b)) out[selector] = { ...out[selector], ...rule }
@@ -1560,5 +1861,5 @@ const merge = (a: Rules, b: Rules): Rules => {
 
 export const foldlab = definePreset({
   name: 'foldlab',
-  globalCss: merge(merge(base, depth), kit) as never,
+  globalCss: merge(merge(merge(base, depth), kit), polish) as never,
 })
