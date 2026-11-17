@@ -8,28 +8,56 @@
 //     MountTracker, Scope, ...) and none of the app's Resources.
 //   - Resource layers are built lazily, on the first Command that needs one,
 //     and the first render's Mounts run before that.
-// So `layer(...)` creates the registry eagerly, when it is called, and leaves it
+// So `layer(...)` creates the registry eagerly, when it is called, and records it
 // on an element under a symbol. A Mount finds it by walking up from its own
 // element. Foldkit replaces the container node with the view's root while the
-// app runs, so the anchor is the container's parent, which stays. One registry
-// value, two ways to reach it, no module-level state. Two apps rendering into
-// the same parent would share an anchor: not supported.
+// app runs, so the anchor is the container's parent, which stays.
+//
+// Several apps can share a parent. The anchor holds one registry per app id: the
+// container's `id` when it has one, `app-<n>` otherwise. The Mount carries the
+// id it was rendered with (`PartsConfig.anchor`), and the walk-up must match it.
+// With no id, only a lone registry matches. Anything else is "no registry", and
+// a Mount that finds none is loud (see `core.ts`), never silently inert.
+//
+// The walk stops at `body`. A bound element outside the anchor's subtree, for
+// example one portaled out of it, finds nothing: see `portal.test.ts`.
 import { Context, Effect, Layer, Option } from 'effect'
 import { type Binding, closeRegistry, makeRegistry, type Registry } from './internal/bind.ts'
 
-const SCOPE = Symbol.for('foldlab.ui.registry')
+const SCOPE = Symbol.for('foldlab.ui.registries')
+
+/** Set on an element whose Mount found no registry. Visible in a DOM dump. */
+export const UNBOUND_ATTRIBUTE = 'data-foldlab-unbound'
+
+type Anchored = Map<string, Registry>
+
+const anchoredOn = (anchor: Element): Anchored | undefined => {
+  const found: unknown = Reflect.get(anchor, SCOPE)
+  return found instanceof Map ? found : undefined
+}
 
 export class UiRegistry extends Context.Service<UiRegistry, Registry>()('foldlab/ui/Registry') {
   /** `container` is the element the app renders into (`Runtime.makeApplication`'s `container`). */
   static readonly layer = (bindings: ReadonlyMap<string, Binding>, container: Element) => {
-    const anchor = container.parentElement ?? container
+    // `body` is the walk's ceiling, so an app rendering into `body` anchors on it.
+    const anchor =
+      container === container.ownerDocument.body
+        ? container
+        : (container.parentElement ?? container)
+    const registries: Anchored = anchoredOn(anchor) ?? new Map()
+    Reflect.set(anchor, SCOPE, registries)
+    // An id the container has wins. A taken one, or none, gets a counter taken
+    // from what the anchor already holds, so no module-level counter exists.
+    let id = container.id
+    for (let n = registries.size; id === '' || registries.has(id); n++) id = `app-${n}`
     const registry = makeRegistry(bindings)
-    Reflect.set(anchor, SCOPE, registry)
+    registries.set(id, registry)
     return Layer.effect(
       UiRegistry,
       Effect.acquireRelease(Effect.succeed(registry), () =>
         Effect.sync(() => {
-          Reflect.deleteProperty(anchor, SCOPE)
+          registries.delete(id)
+          if (registries.size === 0) Reflect.deleteProperty(anchor, SCOPE)
           closeRegistry(registry)
         }),
       ),
@@ -37,11 +65,23 @@ export class UiRegistry extends Context.Service<UiRegistry, Registry>()('foldlab
   }
 }
 
-/** The registry of the app that owns `element`, found on its container. */
-export const findRegistry = (element: Element): Option.Option<Registry> => {
+/**
+ * The registry of the app that owns `element`. `anchor` is the id the part was
+ * rendered with. Empty matches only a lone registry. The walk stops at `body`.
+ */
+export const findRegistry = (element: Element, anchor = ''): Option.Option<Registry> => {
   for (let node: Element | null = element; node !== null; node = node.parentElement) {
-    const found: unknown = Reflect.get(node, SCOPE)
-    if (found !== undefined) return Option.some(found as Registry)
+    const registries = anchoredOn(node)
+    if (registries !== undefined) {
+      const found =
+        anchor === ''
+          ? registries.size === 1
+            ? [...registries.values()][0]
+            : undefined
+          : registries.get(anchor)
+      return Option.fromNullishOr(found)
+    }
+    if (node === node.ownerDocument.body) break
   }
   return Option.none()
 }

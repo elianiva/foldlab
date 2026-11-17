@@ -51,13 +51,15 @@ test('an app can step out of the facade: one component, wired by hand', () => {
 
 test('the registry is a Resource: Commands reach it, and closing the scope releases it', async () => {
   const state = Accordion.init({ key: 'help', value: ['a'] })
+  const parent = document.body.appendChild(document.createElement('div'))
+  const container = parent.appendChild(document.createElement('div'))
   const registry = await Effect.runPromise(
     Effect.scoped(
       Effect.gen(function* () {
-        const context = yield* Layer.build(Ui.layerOf([Accordion.component], document.body))
+        const context = yield* Layer.build(Ui.layerOf([Accordion.component], container))
         const found = Context.get(context, UiRegistry)
         // A Mount reaches the same registry through the container.
-        expect(findRegistry(document.body)).toEqual(Option.some(found))
+        expect(findRegistry(container)).toEqual(Option.some(found))
         const el = document.createElement('button')
         document.body.append(el)
         attach(
@@ -79,6 +81,6 @@ test('the registry is a Resource: Commands reach it, and closing the scope relea
     ),
   )
   expect(registry.entries.size).toBe(0)
-  expect(findRegistry(document.body)._tag).toBe('None')
+  expect(findRegistry(container)._tag).toBe('None')
   expect(document.documentElement.hasAttribute(LOCK_MARKER)).toBe(false)
 })

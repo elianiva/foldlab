@@ -108,6 +108,21 @@ const update = (model, message) => {
 
 Reactions to a change (the demo's validation on assignee and channels) stay in the app's handler, because they are the app's. The handler shrinks by the wiring only.
 
+## Before and after
+
+The demo page (`apps/web/src/app/main.ts`, nonblank lines) before and after the `Ui` facade:
+
+|                                       | By hand                                               | With `Ui.define`                   |
+| ------------------------------------- | ----------------------------------------------------- | ---------------------------------- |
+| `GotUiMessage` handler                | 35                                                    | 22                                 |
+| `uiSpecs` helper                      | 9                                                     | 0                                  |
+| Model fields for ui state             | 8                                                     | 3                                  |
+| Places to touch to add a component    | 4 (Model field, update fold, Model spread, spec list) | 2 (the `kit` entry and its `init`) |
+| Imports for the wiring                | 3 (`specOf`, `syncUiState`, `Spec`)                   | 1 (`Ui`)                           |
+| Components that needed a shape change |                                                       | 0                                  |
+
+The last row is the evidence that the facade is a facade. `accordion.ts`, `combobox.ts`, `dialog.ts` and `field.ts` are byte-for-byte what they were before `Ui` existed. The facade reads their exported `State`, `component` and `update`, and nothing else. The handler win is modest because reactions to a change, such as validation, belong to the app.
+
 ## The registry
 
 The registry holds the live ui-sdk instances. It is a value (`Registry`) with no module-level state, and the app provides it as a Foldkit **Resource**: its lifetime is the app's, not a Model condition. `kit.layer(container)` builds it. Commands `yield*` it. The layer's finalizer closes it with the app's scope, so HMR and tests need no reset hook. A test makes its own with `makeRegistry` and closes it in `afterEach`.
@@ -116,12 +131,34 @@ A boundary test (`boundaries.test.ts`) fails if any kit source declares a module
 
 ### Mounts cannot reach the Resource
 
-Foldkit 0.167 does not let a Mount read an app Resource, so the registry has a second way in:
+Foldkit 0.167 does not let a Mount read an app Resource, so the registry has a second way in. The evidence is in [upstream-notes.md](upstream-notes.md#foldkit-resources-are-not-reachable-from-a-mount). In short: `Mount.define` types its requirement as `Scope` only, the context a Mount runs in holds Foldkit's own services and none of the app's Resources, and Resource layers are built lazily, after the first render's Mounts.
 
-- `Mount.define` types its requirement as `Scope` only.
-- At runtime, the context a Mount runs in holds Foldkit's own services (`Dispatch`, `MountTracker`, `MountRuntime`, `Scope`, ...) and none of the app's Resources. I checked the context keys in a browser.
-- Resource layers are built lazily, on the first Command that needs one. The first render's Mounts run before that.
+So `kit.layer(container)` creates the registry eagerly, when it is called, and records it on an anchor element under a symbol. A Mount finds it by walking up from its own element, and stops at `body`. Foldkit replaces the container node with the view's root while the app runs, so the anchor is the container's parent (the container itself when that is `body`). One registry value, two ways to reach it.
 
-So `kit.layer(container)` creates the registry eagerly, when it is called, and leaves it on an element under a symbol. A Mount finds it by walking up from its own element. Foldkit replaces the container node with the view's root while the app runs, so the anchor is the container's parent. If the registry is missing, the Mount logs an error that names the component and binds nothing.
+### Several apps under one parent
 
-One registry value, two ways to reach it. Two apps rendering into the same parent would share an anchor, which is not supported.
+The anchor holds one registry per app id. The id is the container's `id` when it has one, and `app-<n>` otherwise, counted from what the anchor already holds, so there is no module-level counter. A taken id also gets a counter.
+
+A Mount carries the id its part was rendered with, and the walk-up must match it:
+
+```ts
+const ui = { toMessage, anchor: 'checkout' } // PartsConfig; the container's id
+Dialog.parts(model.ui.settings, h, ui)
+```
+
+With no `anchor`, only a lone registry matches. With two apps and no `anchor`, or one that matches nothing, the part is unbound, loudly. A counter id cannot be known to the view, so **two apps under one parent each need a container `id`** and `anchor` in their parts config. One app needs neither. `mount.test.ts` runs two apps under one parent.
+
+### How it fails: unbound, never silent
+
+A control that binds nothing looks like a hung app, so a Mount that finds no registry does not stay quiet:
+
+- It sets `data-foldlab-unbound="<component>:<slot>"` on the element, so a DOM dump shows which control is dead.
+- In dev (`import.meta.env.DEV`) it fails the Mount, which Foldkit logs as an unhandled Mount failure. Outside dev it logs one error and leaves the marker.
+
+The registry check runs before the Stream is built. Inside `Stream.callback` the failure died in a forked fiber and the Stream hung, which is the silent behavior this replaces.
+
+### Portals
+
+A bound element is found through the anchor above it, so an element moved out of the anchor's subtree has no registry. `portal.test.ts` moves a bound part out of the anchor and asserts the unbound marker and the dev failure. It is the constraint for whoever writes the first portaling component. Foldkit's own `PortalToBody` Mount example (it appends the element to `document.body`) would meet it, unless the anchor is `body` itself.
+
+A portaling component has two ways out: bind before the move and keep the registry-bound Mount on the element, or give the portal target its own anchor registration. Neither is built.

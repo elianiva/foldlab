@@ -46,3 +46,33 @@ Not filed. Title: **A supported entry point for framework adapters, and option t
 > Declaring `options?: Record<string, PropSpec> | undefined` and `slots?: object | undefined` on `Primitive`, or making `definePrimitive` omit the keys it does not set, would remove the cast. I take the cast as evidence that the adapter entry is missing something: the exported types are meant for adapters to consume, and they do not accept the library's own primitives under a flag many strict projects use.
 >
 > Happy to send a PR for either. Versions: `@ui-sdk/core@0.1.0-beta.7`, TypeScript 7.1 beta (`tsrs`).
+
+## Draft issue for Foldkit: Resources are not reachable from a Mount
+
+Not filed. Foldkit 0.167.0 (also checked: 0.170.0 declarations).
+
+Title: **Mount docs say app Resources are available in `execute`; they are not**
+
+> The Mount guide, under "Per-Instance Args", says:
+>
+> > Args are only per-instance inputs. Module constants stay in lexical scope, app-wide services come from Foldkit `Resources`, Model-owned handles come from `ManagedResources`, and Effect services remain available through `yield*` inside `execute`.
+>
+> (https://foldkit.dev/core/mount)
+>
+> That reads as: an app `Resource` passed to `Runtime.makeApplication({ resources })` can be `yield*`-ed inside a Mount's `execute`. I could not make that work, and the types agree with what I saw.
+>
+> **What I observed**
+>
+> 1. **Types.** `Mount.define`'s `execute` returns `Effect<Message, never, Scope.Scope>`, and `Mount.defineStream`'s returns `Stream<Message, never, never>`. A Resource has no place in `R`.
+> 2. **Runtime context.** I read `Effect.context()` inside a `defineStream` Mount, in the browser, in dev. Its keys: `effect/Scheduler`, `effect/Layer/CurrentMemoMap`, `@foldkit/DialogRuntime`, `@foldkit/RenderCommit`, `effect/Scope`, `@foldkit/MountRuntime`, `@foldkit/MountTracker`, `@foldkit/Dispatch`. None of the app's Resources, though the same Resource works from a Command. `html/index.js` runs Mounts with `Effect.runForkWith(capturedContext)`; I did not trace why that context lacks the Resources.
+> 3. **Lazy layers.** A Resource layer is built when the first Command that needs it runs. I wrapped the layer in `Layer.effect(Tag, Effect.acquireRelease(...))` and logged in the acquire. It never ran before the first render's Mounts, and did not run at all until a Command used the service.
+>
+> **What I would like**
+>
+> Either Resources reachable from Mount contexts, with the types to match, or docs that say plainly that they are not, plus the intended pattern for element-scoped work that needs an app service. Today the only routes I found are a Message to `update` and a Command (the Mount has no handle on the service), or a module-level singleton, which defeats the point of a Resource.
+>
+> The use case: a UI library whose Mount binds a live behavior instance to an element. The instances live in an app-scoped registry, and the Commands that sync the Model into them need the same registry the Mounts use.
+>
+> **Separate observation: the container node is replaced while the app runs**
+>
+> With `Runtime.makeApplication({ container })`, the container element does not stay in the document. After the first render, `document.getElementById('root')` is `null` and the view's root element sits in its place. (`renderer.js` patches the container out and restores it on teardown.) Anything attached to the container node, such as an expando property or an observer, is gone by the time the first Mount runs. The `container` option docs do not mention it. Worth a sentence, since anyone who reaches for the container as a stable anchor will lose it. What stays is the container's parent.

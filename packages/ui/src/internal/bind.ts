@@ -73,7 +73,7 @@ export const makeRegistry = (bindings: ReadonlyMap<string, Binding>): Registry =
 // marker belongs to someone else.
 export const LOCK_MARKER = 'data-foldlab-lock'
 
-const isDev = () => (import.meta as { env?: { DEV?: boolean } }).env?.DEV === true
+export const isDev = () => import.meta.env?.DEV === true
 
 const foreignLock = (doc: Document) =>
   !doc.documentElement.hasAttribute(LOCK_MARKER) &&

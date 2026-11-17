@@ -2,8 +2,8 @@ import { Effect, Option, Queue, Schema, Stream } from 'effect'
 import { Command, Mount } from 'foldkit'
 import type { Attribute, Html, HtmlBuilder } from 'foldkit/html'
 import { defineMessageUnion } from 'foldkit/message'
-import { attach, type Binding, type Change, type Snapshot, sync } from './internal/bind.ts'
-import { findRegistry, UiRegistry } from './registry.ts'
+import { attach, type Binding, type Change, isDev, type Snapshot, sync } from './internal/bind.ts'
+import { findRegistry, UiRegistry, UNBOUND_ATTRIBUTE } from './registry.ts'
 import { type Attrs, type PartProps, type Primitive, renderPhase } from './internal/render.ts'
 
 // ── Messages ────────────────────────────────────────────────────────────────
@@ -122,16 +122,21 @@ export const BindPart = Mount.defineStream('BindUiPart', {
     slot: Schema.String,
     props: Schema.Record(Schema.String, Schema.Unknown),
     state: Schema.Unknown,
+    /** The app id the part was rendered with (`PartsConfig.anchor`). Empty: the lone registry. */
+    anchor: Schema.String,
   },
   messages: [Message],
-  execute: ({ element, component, key, slot, props, state }) =>
-    Stream.callback<Message>((queue) =>
+  // The registry check runs before the Stream exists, so a failure in dev is the
+  // Mount's own failure (Foldkit logs it as an unhandled Mount failure). Inside
+  // `Stream.callback` it would die in a forked fiber and the Stream would hang.
+  execute: ({ element, component, key, slot, props, state, anchor }) =>
+    Stream.unwrap(
       Effect.gen(function* () {
         // A Mount cannot `yield*` the Resource: its static requirement is only
         // Scope, and the context it runs in holds Foldkit's own services, not the
-        // app's Resources. The layer leaves the same registry on the app's container
-        // element, and the Mount finds it from its own element.
-        const registry = findRegistry(element)
+        // app's Resources. The layer leaves the same registry on an element above
+        // the app, and the Mount finds it from its own element.
+        const registry = findRegistry(element, anchor)
         const binding = Option.flatMap(registry, (r) =>
           Option.fromNullishOr(r.bindings.get(component)),
         )
@@ -140,43 +145,58 @@ export const BindPart = Mount.defineStream('BindUiPart', {
           Option.isNone(binding) ||
           !(element instanceof HTMLElement)
         ) {
-          console.error(`[foldlab] No UiRegistry binding for "${component}". Provide its layer.`)
-          return yield* Effect.never
+          // A control that binds nothing looks like a hung app. Say so in the DOM,
+          // where a dump shows it, and fail loudly in dev.
+          const unbound = `${component}:${slot}`
+          element.setAttribute(UNBOUND_ATTRIBUTE, unbound)
+          const reason = Option.isNone(registry)
+            ? `no registry for anchor "${anchor}" above this element (is kit.layer(container) provided, and is the part inside the anchor's subtree?)`
+            : Option.isNone(binding)
+              ? `the registry has no binding for "${component}"`
+              : 'the element is not an HTMLElement'
+          const message = `[foldlab] ${unbound} is unbound: ${reason}.`
+          if (isDev()) return yield* Effect.die(new Error(message))
+          console.error(message)
+          return Stream.empty
         }
-        yield* Effect.acquireRelease(
-          Effect.sync(() =>
-            attach(
-              registry.value,
-              component,
-              binding.value,
-              key,
-              state,
-              slot,
-              props,
-              element,
-              (change: Change) => {
-                Queue.offerUnsafe(
-                  queue,
-                  change.refused
-                    ? Message.RefusedUiChange({
-                        component,
-                        key,
-                        snapshot: change.snapshot,
-                        reason: change.reason,
-                      })
-                    : Message.ChangedUiState({
-                        component,
-                        key,
-                        snapshot: change.snapshot,
-                        reason: change.reason,
-                      }),
-                )
-              },
-            ),
-          ),
-          (release) => Effect.sync(release),
+        return Stream.callback<Message>((queue) =>
+          Effect.gen(function* () {
+            yield* Effect.acquireRelease(
+              Effect.sync(() =>
+                attach(
+                  registry.value,
+                  component,
+                  binding.value,
+                  key,
+                  state,
+                  slot,
+                  props,
+                  element,
+                  (change: Change) => {
+                    Queue.offerUnsafe(
+                      queue,
+                      change.refused
+                        ? Message.RefusedUiChange({
+                            component,
+                            key,
+                            snapshot: change.snapshot,
+                            reason: change.reason,
+                          })
+                        : Message.ChangedUiState({
+                            component,
+                            key,
+                            snapshot: change.snapshot,
+                            reason: change.reason,
+                          }),
+                    )
+                  },
+                ),
+              ),
+              (release) => Effect.sync(release),
+            )
+            return yield* Effect.never
+          }),
         )
-        return yield* Effect.never
       }),
     ),
 })
@@ -214,6 +234,8 @@ export const syncUiState = Command.define('SyncUiState', {
 export type PartsConfig<AppMessage> = Readonly<{
   /** Wraps ui-sdk's Message into the app's. */
   toMessage: (message: Message) => AppMessage
+  /** The container id of the app, when several apps share one parent. See `registry.ts`. */
+  anchor?: string
 }>
 
 export type Part<AppMessage> = (
@@ -270,7 +292,14 @@ export const makeParts =
           ? [
               h.OnMount(
                 Mount.mapMessage(
-                  BindPart({ component: component.name, key, slot, props, state }),
+                  BindPart({
+                    component: component.name,
+                    key,
+                    slot,
+                    props,
+                    state,
+                    anchor: config.anchor ?? '',
+                  }),
                   config.toMessage,
                 ),
               ),
