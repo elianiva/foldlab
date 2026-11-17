@@ -245,3 +245,136 @@ export const inputGroup = <M>(h: HtmlBuilder<M>, children: Children): Html =>
 
 export const code = <M>(h: HtmlBuilder<M>, source: string): Html =>
   h.pre(data(h, 'code'), [h.code([], [source])])
+
+export const tableOfContents = <M>(
+  h: HtmlBuilder<M>,
+  items: ReadonlyArray<Readonly<{ id: string; label: string; level?: number }>>,
+  activeId: string,
+): Html =>
+  h.nav(
+    [...data(h, 'toc'), h.AriaLabel('On this page')],
+    [
+      h.p(data(h, 'toc-title'), ['On this page']),
+      h.ul(
+        [],
+        items.map((item) =>
+          h.li(
+            [h.Style({ paddingInlineStart: `${(item.level ?? 0) * 0.75}rem` })],
+            [
+              h.a(
+                [
+                  h.Href(`#${item.id}`),
+                  ...(item.id === activeId ? [h.AriaCurrent('location')] : []),
+                ],
+                [item.label],
+              ),
+            ],
+          ),
+        ),
+      ),
+    ],
+  )
+
+/** A sidebar for an app's own navigation. The gallery shell's is hand-built; this one is the element. */
+export const sidebar = <M>(
+  h: HtmlBuilder<M>,
+  groups: ReadonlyArray<
+    Readonly<{
+      name: string
+      items: ReadonlyArray<Readonly<{ label: string; href: string; current?: boolean }>>
+    }>
+  >,
+): Html =>
+  h.nav(
+    [...data(h, 'sidebar'), h.AriaLabel('Sidebar')],
+    groups.flatMap((group) => [
+      h.p(data(h, 'sidebar-group'), [group.name]),
+      ...group.items.map((item) =>
+        h.a(
+          [
+            ...data(h, 'sidebar-link'),
+            h.Href(item.href),
+            ...(item.current === true ? [h.AriaCurrent('page')] : []),
+          ],
+          [item.label],
+        ),
+      ),
+    ]),
+  )
+
+/** The value, then a copy action: Clipboard Text and Inline Copy Text differ only in `inline`. */
+export const copyText = <M>(
+  h: HtmlBuilder<M>,
+  props: Readonly<{ text: string; copied: boolean; inline?: boolean }>,
+  onCopy: Attribute<M>,
+): Html =>
+  h.span(
+    [...data(h, 'copy-text', { inline: props.inline })],
+    [
+      h.code([], [props.text]),
+      h.button(
+        [
+          ...data(h, 'copy-button'),
+          h.Type('button'),
+          h.AriaLabel(props.copied ? 'Copied' : 'Copy'),
+          onCopy,
+        ],
+        [props.copied ? 'Copied' : 'Copy'],
+      ),
+    ],
+  )
+
+/** A node in a flow diagram: a titled box. Connect them with `flowArrow`. */
+export const flowNode = <M>(
+  h: HtmlBuilder<M>,
+  props: Readonly<{ title: string; tone?: Tone }>,
+  children: Children = [],
+): Html =>
+  h.div(data(h, 'flow-node', { tone: props.tone }), [
+    h.p(data(h, 'flow-title'), [props.title]),
+    ...children,
+  ])
+
+export const flowArrow = <M>(h: HtmlBuilder<M>): Html =>
+  h.span([...data(h, 'flow-arrow'), h.AriaHidden(true)], ['\u2192'])
+
+export const flow = <M>(h: HtmlBuilder<M>, children: Children): Html =>
+  h.div(data(h, 'flow'), children)
+
+export const pageHeader = <M>(
+  h: HtmlBuilder<M>,
+  props: Readonly<{ title: string; description?: string }>,
+  actions: Children = [],
+): Html =>
+  h.header(data(h, 'page-header'), [
+    h.div(
+      [],
+      [
+        h.h2(data(h, 'page-header-title'), [props.title]),
+        ...(props.description === undefined
+          ? []
+          : [h.p(data(h, 'page-header-description'), [props.description])]),
+      ],
+    ),
+    h.div(data(h, 'page-header-actions'), actions),
+  ])
+
+export const resourceList = <M>(
+  h: HtmlBuilder<M>,
+  rows: ReadonlyArray<Readonly<{ name: string; meta: string; status: Html }>>,
+): Html =>
+  h.ul(
+    data(h, 'resource-list'),
+    rows.map((row) =>
+      h.li(
+        [],
+        [
+          h.div(
+            [],
+            [h.p(data(h, 'resource-name'), [row.name]), h.p(data(h, 'resource-meta'), [row.meta])],
+          ),
+          row.status,
+        ],
+      ),
+    ),
+  )

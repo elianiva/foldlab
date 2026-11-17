@@ -107,7 +107,158 @@ const dialogPage = ({ h, model, ui }: Ctx): ReadonlyArray<Html> => {
   ]
 }
 
+const tocItems = [
+  { id: 'installation', label: 'Installation' },
+  { id: 'usage', label: 'Usage' },
+  { id: 'examples', label: 'Examples' },
+  { id: 'variants', label: 'Variants', level: 1 },
+  { id: 'api', label: 'API Reference' },
+]
+
+const copyPage =
+  (inline: boolean): Page['render'] =>
+  ({ h, model }) => {
+    const text = inline ? 'pnpm add @foldlab/ui' : 'pnpm dlx foldlab init --template=cafe'
+    return [
+      sectionOf(
+        h,
+        inline ? 'Inline' : 'Block',
+        [
+          E.copyText(
+            h,
+            { text, copied: model.demo.copied === text, inline },
+            h.OnClick(Message.ClickedCopy({ text })),
+          ),
+        ],
+        'E.copyText(h, { text, copied }, h.OnClick(Message.ClickedCopy({ text })))',
+        inline ? undefined : stacked,
+      ),
+    ]
+  }
+
 export const morePages: ReadonlyArray<Page> = [
+  {
+    id: 'clipboard-text',
+    title: 'Clipboard Text',
+    description: 'A value with a button that copies it. The copy is a Command.',
+    render: copyPage(false),
+  },
+  {
+    id: 'inline-copy-text',
+    title: 'Inline Copy Text',
+    description: 'The same, sized to sit in a sentence.',
+    render: copyPage(true),
+  },
+  {
+    id: 'table-of-contents',
+    title: 'Table of Contents',
+    description: 'Links to the sections of a page.',
+    render: ({ h }) => [
+      sectionOf(
+        h,
+        'Basic',
+        [E.tableOfContents(h, tocItems, 'usage')],
+        "E.tableOfContents(h, items, 'usage')",
+      ),
+    ],
+  },
+  {
+    id: 'sidebar',
+    title: 'Sidebar',
+    description: 'Grouped navigation links.',
+    render: ({ h }) => [
+      sectionOf(
+        h,
+        'Basic',
+        [
+          E.sidebar(h, [
+            {
+              name: 'Build',
+              items: [
+                { label: 'Workers', href: '#/sidebar', current: true },
+                { label: 'Pages', href: '#/sidebar' },
+              ],
+            },
+            {
+              name: 'Storage',
+              items: [
+                { label: 'KV', href: '#/sidebar' },
+                { label: 'D1', href: '#/sidebar' },
+              ],
+            },
+          ]),
+        ],
+        "E.sidebar(h, [{ name: 'Build', items: [{ label: 'Workers', href }] }])",
+      ),
+    ],
+  },
+  {
+    id: 'flow',
+    title: 'Flow',
+    description: 'Boxes joined by arrows.',
+    render: ({ h }) => [
+      sectionOf(
+        h,
+        'Basic',
+        [
+          E.flow(h, [
+            E.flowNode(h, { title: 'Request' }),
+            E.flowArrow(h),
+            E.flowNode(h, { title: 'Worker', tone: 'success' }),
+            E.flowArrow(h),
+            E.flowNode(h, { title: 'D1' }),
+          ]),
+        ],
+        "E.flow(h, [E.flowNode(h, { title: 'Request' }), E.flowArrow(h), ...])",
+      ),
+    ],
+  },
+  {
+    id: 'page-header',
+    title: 'Page Header',
+    description: 'A title with its actions. A building block.',
+    render: ({ h }) => [
+      sectionOf(
+        h,
+        'Block',
+        [
+          E.pageHeader(h, { title: 'Workers', description: 'Deploy code to the edge.' }, [
+            E.button(h, { variant: 'primary' }, [], ['Create Worker']),
+          ]),
+        ],
+        "E.pageHeader(h, { title: 'Workers' }, [E.button(h, { variant: 'primary' }, [], ['Create'])])",
+        stacked,
+      ),
+    ],
+  },
+  {
+    id: 'resource-list',
+    title: 'Resource List',
+    description: 'Rows of named resources with a status. A building block.',
+    render: ({ h }) => [
+      sectionOf(
+        h,
+        'Block',
+        [
+          E.resourceList(h, [
+            {
+              name: 'api-gateway',
+              meta: 'Updated 2h ago',
+              status: E.badge(h, 'success', ['Live']),
+            },
+            {
+              name: 'image-resizer',
+              meta: 'Updated 1d ago',
+              status: E.badge(h, 'warning', ['Degraded']),
+            },
+          ]),
+        ],
+        "E.resourceList(h, [{ name, meta, status: E.badge(h, 'success', ['Live']) }])",
+        stacked,
+      ),
+    ],
+  },
+
   {
     id: 'accordion',
     title: 'Accordion',

@@ -68,6 +68,7 @@ export const Model = Schema.Struct({
     loading: Schema.Boolean,
     pagination: Schema.Finite,
     revealed: Schema.Boolean,
+    copied: Schema.String,
   }),
   name: Text,
   owner: Schema.Struct({ email: Text, assignee: Text }),
@@ -138,9 +139,20 @@ export const Message = defineMessageUnion({
   ChangedPage: { page: Schema.String },
   ToggledLoading: {},
   ToggledReveal: {},
+  ClickedCopy: { text: Schema.String },
+  CompletedCopy: { text: Schema.String },
   ChangedDemoPage: { value: Schema.Finite },
 })
 export type Message = typeof Message.Type
+
+export const CopyText = Command.define('CopyText', {
+  args: { text: Schema.String },
+  messages: [Message.CompletedCopy],
+  execute: ({ text }) =>
+    Effect.promise(() => navigator.clipboard.writeText(text).catch(() => undefined)).pipe(
+      Effect.as(Message.CompletedCopy({ text })),
+    ),
+})
 
 export const CheckName = Command.define('CheckName', {
   args: { name: Schema.String },
@@ -157,7 +169,7 @@ export const init = (flags: Flags) => ({
   model: Model.make({
     anchorId: flags.anchorId,
     page: flags.page,
-    demo: { loading: false, pagination: 1, revealed: false },
+    demo: { loading: false, pagination: 1, revealed: false, copied: '' },
     name: FieldValidation.NotValidated({ value: '' }),
     owner: {
       email: FieldValidation.NotValidated({ value: '' }),
@@ -325,6 +337,10 @@ export const update = (model: Model, message: Message): Update.Return<Model, Mes
     ChangedPage: ({ page }) => ({ model: { ...model, page } }),
     ToggledLoading: () => ({
       model: { ...model, demo: { ...model.demo, loading: !model.demo.loading } },
+    }),
+    ClickedCopy: ({ text }) => ({ model, commands: [CopyText({ text })] }),
+    CompletedCopy: ({ text }) => ({
+      model: { ...model, demo: { ...model.demo, copied: text } },
     }),
     ToggledReveal: () => ({
       model: { ...model, demo: { ...model.demo, revealed: !model.demo.revealed } },
