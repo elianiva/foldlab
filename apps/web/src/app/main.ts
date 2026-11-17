@@ -8,7 +8,8 @@ import {
   Field,
   Message as UiMessage,
   specOf,
-  syncSubscription,
+  syncUiState,
+  type Spec,
 } from '@foldlab/ui'
 import { css } from '../../styled-system/css'
 
@@ -182,6 +183,8 @@ export const update = (model: Model, message: Message): Update.Return<Model, Mes
       },
     }),
     GotUiMessage: ({ message: ui }) => {
+      // A sync's own completion must not start another one.
+      if (ui._tag === 'CompletedUiSync') return { model }
       const assigneeBox = Combobox.update(model.assigneeBox, ui)
       const channelBox = Combobox.update(model.channelBox, ui)
       const help = Accordion.update(model.help, ui)
@@ -201,6 +204,13 @@ export const update = (model: Model, message: Message): Update.Return<Model, Mes
             ? FieldValidation.validate(rules.channels)(channelBox.value)
             : model.channels,
         },
+        // Confirms the ack, or reverts it if this update refused the change.
+        commands: [
+          Command.mapMessage(
+            syncUiState({ specs: uiSpecs({ assigneeBox, channelBox, help }) }),
+            (message) => Message.GotUiMessage({ message }),
+          ),
+        ],
       }
     },
     ClickedSubmit: () => {
@@ -225,11 +235,13 @@ export const update = (model: Model, message: Message): Update.Return<Model, Mes
 
 // ── Bind phase wiring ───────────────────────────────────────────────────────
 
-export const subscriptions = syncSubscription<Model, Message>((model) => [
-  specOf(Combobox.component, model.assigneeBox),
-  specOf(Combobox.component, model.channelBox),
-  specOf(Accordion.component, model.help),
-])
+const uiSpecs = (
+  state: Pick<Model, 'assigneeBox' | 'channelBox' | 'help'>,
+): ReadonlyArray<Spec> => [
+  specOf(Combobox.component, state.assigneeBox),
+  specOf(Combobox.component, state.channelBox),
+  specOf(Accordion.component, state.help),
+]
 
 // ── View ────────────────────────────────────────────────────────────────────
 

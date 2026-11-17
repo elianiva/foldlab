@@ -1,9 +1,9 @@
 import { fuzzyScore } from '@ui-sdk/core/text-match'
 import { combobox } from '@ui-sdk/core/combobox'
 import { Schema } from 'effect'
-import { defineComponent, makeParts } from './core.ts'
+import { defineComponent, makeParts, makeUpdate } from './core.ts'
+import type { Snapshot } from './internal/bind.ts'
 import { primitiveOf } from './internal/render.ts'
-import type { Message } from './core.ts'
 
 export const Item = Schema.Struct({ value: Schema.String, label: Schema.String })
 export type Item = typeof Item.Type
@@ -45,37 +45,15 @@ const asArray = (value: unknown): ReadonlyArray<string> =>
 export const labelOf = (state: State, value: string) =>
   state.items.find((item) => item.value === value)?.label ?? value
 
-/** Applies ui-sdk's request. Returns the same object when the Message is not for this state. */
-export const update = (state: State, message: Message): State => {
-  if (
-    message._tag !== 'ChangedUiState' ||
-    message.component !== 'combobox' ||
-    message.key !== state.key
-  ) {
-    return state
-  }
-  switch (message.name) {
-    case 'value': {
-      const value = asArray(message.value)
-      // Single mode shows the chosen label in the input, as a native select would.
-      const query = state.multiple ? state.query : labelOf(state, value[0] ?? '')
-      return { ...state, value, query: value.length === 0 && !state.multiple ? '' : query }
-    }
-    case 'query':
-      // No value means "reset": ui-sdk sends it when the list closes. Single mode falls back to the chosen label.
-      return {
-        ...state,
-        query:
-          typeof message.value === 'string'
-            ? message.value
-            : state.multiple
-              ? ''
-              : labelOf(state, state.value[0] ?? ''),
-      }
-    case 'open':
-      return { ...state, open: message.value === true }
-    default:
-      return state
+const fold = (state: State, snapshot: Snapshot): State => {
+  const value = asArray(snapshot['value'])
+  const query = snapshot['query']
+  return {
+    ...state,
+    value,
+    // No query means "reset": ui-sdk asks for it when the list closes. Single mode shows the chosen label.
+    query: typeof query === 'string' ? query : state.multiple ? '' : labelOf(state, value[0] ?? ''),
+    open: snapshot['open'] === true,
   }
 }
 
@@ -121,7 +99,12 @@ export const component = defineComponent<State, Slot>({
     itemToValue: (item: Item) => item.value,
     itemToLabel: (item: Item) => item.label,
   }),
+  controlled: ['value', 'query', 'open'],
   callbacks: { onValueChange: 'value', onQueryChange: 'query', onOpenChange: 'open' },
+  fold,
+  // Typing opens the list. Filtering stays with the app, in `visibleItems`.
+  typed: (state, text) => ({ ...state, query: text, open: true }),
+  text: 'input',
   tags: {
     root: 'div',
     label: 'label',
@@ -140,3 +123,5 @@ export const component = defineComponent<State, Slot>({
 })
 
 export const parts = makeParts(component)
+
+export const update = makeUpdate(component)

@@ -4,7 +4,8 @@
   "type": "module",
   "exports": {
     ".": "./src/index.ts",
-    "./preset": "./src/preset.ts"
+    "./preset": "./src/preset.ts",
+    "./testing": "./src/testing.ts"
   },
   "scripts": {
     "typecheck": "tsrs --noEmit -p tsconfig.json && effect-tsrs diagnostics --strict --project tsconfig.json",
@@ -16,6 +17,7 @@
     "foldkit": "0.167.0"
   },
   "devDependencies": {
-    "@pandacss/dev": "2.5.0"
+    "@pandacss/dev": "2.5.0",
+    "happy-dom": "21.0.4"
   }
 }

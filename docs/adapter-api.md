@@ -22,7 +22,7 @@ Model slice ──options()──► render phase (pure) ──► attributes �
      │                                                              ▼
  update ◄── Message.ChangedUiState ◄── core handlers ◄── live instance on the element
      │
-     └──► syncSubscription ──► instance.setOptions(options(model))
+     └──► SyncUiState Command ──► instance.setOptions(options(model))
 ```
 
 ## Side by side: accordion
@@ -83,8 +83,8 @@ help: Accordion.init({ key: 'help', multiple: true })
 GotUiMessage: ({ message }) => ({
   model: { ...model, help: Accordion.update(model.help, message) },
 })
-// subscriptions
-specOf(Accordion.component, model.help)
+// update also returns a confirmation Command
+syncUiState({ specs: [specOf(Accordion.component, model.help)] })
 // view
 const accordion = Accordion.parts(model.help, h, ui) // ui = { toMessage }
 accordion.root(
@@ -216,7 +216,7 @@ Do not put `h.OnClick` on a slot to change the ui-sdk state. It does not reach c
 - **Render phase**, `internal/render.ts`. Builds a throwaway instance from options, reads state once, calls `attrs` and `present` from the renderer entry, and discards it. No `window`, no DOM, no counter.
 - **Bind phase**, `internal/bind.ts`. A registry outside the Model, keyed by `component:key`. The first part to mount creates the instance. The last one to unmount destroys it.
 - **`Mount`**, `BindUiPart`. One per part that needs a live element. Its lifetime follows the DOM node, and its stream carries `ChangedUiState` Messages out.
-- **`syncSubscription`**. Pushes the Model's state into mounted instances with `setOptions`.
+- **`syncUiState`**. Pushes the Model's state into mounted instances with `setOptions`.
 
 ### Where ui-sdk's shape was worth keeping
 
@@ -226,20 +226,42 @@ Do not put `h.OnClick` on a slot to change the ui-sdk state. It does not reach c
 - **Reasons.** `details.reason` becomes `Message.reason`, so `update` can tell `item-press` from `escape-key`.
 - **Field wiring.** `Field.parts(...).attributes('control', {}, ['aria-describedby', 'aria-invalid'])` lets a combobox input take the Field's description and error ids without a second component.
 
-## Problems we found
+## Decisions and open problems
 
-1. **The Model round trip is asynchronous.** The instance sees a new value only after `update`, then the subscription. Two selections in the same tick lose the first one. With a 600 ms gap between clicks, multi-select works. A real user is slower, but a fast keyboard sequence may beat it (not tested). Fix candidates: apply the change to the instance immediately and reconcile on the next sync, or keep a local optimistic copy in the registry.
-2. **`Subscription` as a push channel is off-label.** `syncSubscription` has no stream. It runs a side effect when its dependencies change. Foldkit's docs prefer a Command from `update`. A Command per `GotUiMessage` would remove the Subscription, but the app would have to emit it.
-3. **Render cost.** Every `view` builds one ui-sdk instance per `parts(...)` call. The demo has 5 of them. That works at this size, and Foldkit already warned `Slow patch: 13.5ms (budget: 8ms)` on first render. Memoizing by state with `createLazy` is the likely fix.
-4. **Scene wants every Mount resolved.** Each bound part is one Mount, so the demo's view has 13. The scene test needs `resolveBinds(13)`. Binding only the root slot (and handling the rest by delegation) would cut that to one per component.
-5. **Scene cannot type.** It has `change` but no `input` step, and our controls use `OnInput`. The scene test builds the invalid state through `update`, then checks the view.
-6. **Message typing.** `Scene.Mount.resolve(BindPart, …)` types the result as the raw ui Message, but the view maps it into the app's Message. The test needs a cast.
-7. **ui-sdk sends "reset" as a `query` change with no value.** A single-mode combobox must treat it as "show the selected label". `Combobox.update` handles it.
+1. **Acks happen in bind.** On a controlled key, core's `createChange` calls the callback and waits for the value to return through `sync`. The bind callback writes the accepted value into the instance first (`setOptions`), then emits `ChangedUiState` with the full controlled snapshot. A second interaction in the same tick reads the acked value. Messages are idempotent and order-independent. `reason` is for policy, never for rebuilding state.
+2. **`SyncUiState` is a Command, not a Subscription.** `update` returns it after every ui Message. It confirms the ack, or reverts the instance when `update` ignored the change.
+3. **Text entry is Foldkit's.** The `text` slot (the combobox input) gets `h.Value` and `h.OnInput` and a `TypedUiText` Message. Bind passes `{ by: 'framework', attaches: ['input'] }` so core attaches no `input` handler there. Core keeps keys, ARIA and focus on that element.
+4. **One Mount per part, kept.** Part props come from the render call, not the DOM, so a root-scoped scan cannot rebuild `part(slot, props)`. Test noise is handled in `@foldlab/ui/testing`: `resolveBinds(lift)` resolves every pending `BindUiPart` and owns the one cast.
+5. **Scene has no `input` step.** Typing a value is still not drivable, although the input now has an `OnInput` handler a Scene can assert (`toHaveHandler('input')`).
+6. **Unstable `renderer` accepted**, pinned and isolated. `renderer-contract.test.ts` fails on a break.
+7. **ui-sdk sends "reset" as a controlled `query` of `undefined`.** `Combobox` folds it to the chosen label in single mode.
 8. **`@ui-sdk/core` types vs `exactOptionalPropertyTypes`.** `primitiveOf` widens each primitive in one place.
-9. **`renderer` is unstable.** Pinning the version holds it for now. A beta bump needs a pass over two files.
+9. **Not fixed: a stale ack.** If `update` refuses a change, the instance holds the acked value until the Command lands. One Command round trip.
 
 ## What it makes hard to test
 
 - **Behavior.** Stories (`update` only) cover the Message flow and validation fully, with no DOM. Real keyboard and focus behavior only exists after `bind`, so only a browser run covers it. I ran that by hand with `agent-browser`: accordion toggle, name check, combobox filter and select, multi-select.
 - **View.** Scenes can check attributes, ARIA wiring and structure from the render phase. That is the payoff of the pure phase.
-- **Mounts.** See items 4 to 6 above.
+- **Mounts.** See items 4 and 5 above.
+
+## Bumping `@ui-sdk/core`
+
+`@ui-sdk/core/renderer` is not public API, so every bump is a review.
+
+1. Change the exact version in `packages/ui/package.json` and run `pnpm install`.
+2. Run `pnpm test`. `packages/ui/src/renderer-contract.test.ts` exercises `attrs`, `present`, `bind`, `part`, `setOptions`, `get` and `destroy`. A failure there names the broken export.
+3. Read the release notes for `renderer`, `createChange`, `controlled` and `sync`.
+4. Check the demo in a browser: accordion, single and multi combobox, same-tick double selection.
+5. Touch only `internal/render.ts` and `internal/bind.ts`.
+
+## Render cost, measured
+
+`apps/web/bench.html?rows=N` renders one single-select combobox per row. `view` time is measured in Chrome (dev build, M-series Mac), 10 re-renders from an unrelated `Tick` Message:
+
+| Rows | Bound parts (Mounts) | First `view` | Re-render `view` avg |
+| ---- | -------------------- | ------------ | -------------------- |
+| 1    | 2                    | 3.2 ms       | 0.8 ms               |
+| 50   | 100                  | 3.7 ms       | 4.0 ms               |
+| 200  | 400                  | 15.8 ms      | 6.6 ms               |
+
+At 50 rows the render phase costs about 4 ms of an 8 ms Foldkit budget. Not worth a cache yet. If it grows, cache `renderPhase` by component, key and the controlled-state snapshot. The demo's 13 ms slow patch on first render was mostly Foldkit mounting, not the render phase.

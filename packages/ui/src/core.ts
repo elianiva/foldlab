@@ -1,21 +1,28 @@
 import { Effect, Queue, Schema, Stream } from 'effect'
-import { Mount, Subscription } from 'foldkit'
+import { Command, Mount } from 'foldkit'
 import type { Attribute, Html, HtmlBuilder } from 'foldkit/html'
 import { defineMessageUnion } from 'foldkit/message'
-import { attach, type Binding, type Change, sync } from './internal/bind.ts'
+import { attach, type Binding, type Change, type Snapshot, sync } from './internal/bind.ts'
 import { type Attrs, type PartProps, type Primitive, renderPhase } from './internal/render.ts'
 
 // ── Messages ────────────────────────────────────────────────────────────────
 
-/** The only Message ui-sdk produces. `component` + `key` say whose state it is. */
+/** `component` + `key` say whose state a Message is about. */
 export const Message = defineMessageUnion({
+  /**
+   * An instance accepted a change. Carries every controlled option of that
+   * instance, not one pair, so applying it is idempotent and order-independent.
+   * `reason` is for policy (refuse, log), never for rebuilding state.
+   */
   ChangedUiState: {
     component: Schema.String,
     key: Schema.String,
-    name: Schema.String,
-    value: Schema.Unknown,
+    snapshot: Schema.Record(Schema.String, Schema.Unknown),
     reason: Schema.String,
   },
+  /** Text typed into an input Foldkit owns. Core never sees it. */
+  TypedUiText: { component: Schema.String, key: Schema.String, value: Schema.String },
+  CompletedUiSync: {},
 })
 export type Message = typeof Message.Type
 
@@ -33,8 +40,16 @@ export type Component<State, Slot extends string> = Readonly<{
   key: (state: State) => string
   /** Model state to ui-sdk options. Pure. */
   options: (state: State) => Readonly<Record<string, unknown>>
-  /** ui-sdk callback option to the state field it asks to change. */
-  callbacks: Readonly<Record<string, keyof State & string>>
+  /** Option names the Model controls (ui-sdk's `controlled`). */
+  controlled: ReadonlyArray<string>
+  /** ui-sdk callback option to the controlled option it asks to change. */
+  callbacks: Readonly<Record<string, string>>
+  /** State after a snapshot of controlled options lands. Pure and idempotent. */
+  fold: (state: State, snapshot: Snapshot) => State
+  /** State after text is typed into the `text` slot. */
+  typed?: (state: State, text: string) => State
+  /** The slot whose text entry Foldkit owns: `h.Value` and `h.OnInput`, no core `input` handler. */
+  text?: Slot
   tags: Readonly<Record<Slot, Tag>>
   /** Slots that need a live element: handlers, focus, observers. The rest stay pure. */
   bound: ReadonlyArray<Slot>
@@ -49,15 +64,32 @@ export const defineComponent = <State, Slot extends string>(
   bindings.set(component.name, {
     primitive: component.primitive,
     options: (state) => component.options(decode(state)),
+    controlled: component.controlled,
     callbacks: component.callbacks,
+    fold: (state, snapshot) => component.fold(decode(state), snapshot),
+    foldkitEvents: component.text === undefined ? {} : { [component.text]: ['input'] },
   })
   return component
 }
 
+/**
+ * Applies a Message to one component's state. It returns the same object when
+ * the Message is about another instance. Skip calling it to refuse a change;
+ * `syncUiState` then reverts the instance.
+ */
+export const makeUpdate =
+  <State, Slot extends string>(component: Component<State, Slot>) =>
+  (state: State, message: Message): State => {
+    if (message._tag === 'CompletedUiSync') return state
+    if (message.component !== component.name || message.key !== component.key(state)) return state
+    if (message._tag === 'TypedUiText') return component.typed?.(state, message.value) ?? state
+    return component.fold(state, message.snapshot)
+  }
+
 // ── Bind phase: Mount ───────────────────────────────────────────────────────
 
 // Args are frozen when the element is inserted. They say which part this is
-// and seed the instance; later Model changes arrive through `syncSubscription`.
+// and seed the instance; later Model changes arrive through `syncUiState`.
 export const BindPart = Mount.defineStream('BindUiPart', {
   args: {
     component: Schema.String,
@@ -92,32 +124,27 @@ export const BindPart = Mount.defineStream('BindUiPart', {
 const Spec = Schema.Struct({ component: Schema.String, key: Schema.String, state: Schema.Unknown })
 export type Spec = typeof Spec.Type
 
-/** Describes one component's Model slice for `syncSubscription`. */
+/** Describes one component's Model slice for `syncUiState`. */
 export const specOf = <State, Slot extends string>(
   component: Component<State, Slot>,
   state: State,
 ): Spec => ({ component: component.name, key: component.key(state), state })
 
 /**
- * Pushes the Model's ui state into the mounted instances. Declare it once, with
- * every ui-sdk state the Model owns. It does nothing for a part that is not
- * mounted, and an instance never writes back except through a Message.
+ * Confirms the Model's ui state into the mounted instances. Return it from
+ * `update` after every Message that can change ui state. It is a confirmation
+ * when the instance already acked the change, and a revert when `update`
+ * refused it. A part that is not mounted ignores it.
  */
-export const syncSubscription = <Model, AppMessage>(specs: (model: Model) => ReadonlyArray<Spec>) =>
-  Subscription.make<Model, AppMessage>()((entry) => ({
-    syncUiState: entry(
-      { specs: Schema.Array(Spec) },
-      {
-        modelToDependencies: (model) => ({ specs: specs(model) }),
-        dependenciesToStream: ({ specs }) =>
-          Stream.fromEffect(
-            Effect.sync(() => {
-              for (const spec of specs) sync(spec.component, spec.key, spec.state)
-            }),
-          ).pipe(Stream.drain),
-      },
-    ),
-  }))
+export const syncUiState = Command.define('SyncUiState', {
+  args: { specs: Schema.Array(Spec) },
+  messages: [Message.CompletedUiSync],
+  execute: ({ specs }) =>
+    Effect.sync(() => {
+      for (const spec of specs) sync(spec.component, spec.key, spec.state)
+      return Message.CompletedUiSync()
+    }),
+})
 
 // ── Render phase: parts ─────────────────────────────────────────────────────
 
@@ -182,8 +209,17 @@ export const makeParts =
               ),
             ]
           : []
+        const typed =
+          slot === component.text
+            ? [
+                h.OnInput((value: string) =>
+                  config.toMessage(Message.TypedUiText({ component: component.name, key, value })),
+                ),
+              ]
+            : []
         const all = [
           ...toAttributes(h, own),
+          ...typed,
           ...(own['id'] ? [h.Key(own['id'])] : []),
           ...attributes,
           ...mount,

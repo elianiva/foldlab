@@ -1,37 +1,37 @@
-import { BindPart, Message as UiMessage } from '@foldlab/ui'
+import { resolveBinds } from '@foldlab/ui/testing'
+import { Message as UiMessage } from '@foldlab/ui'
 import { Scene } from 'foldkit/test'
 import { test } from 'vitest'
 import { init, Message, update, view } from './main.ts'
 
-// Scene has no `input` step, only `change`, so OnInput controls cannot be typed
-// into. The invalid state is reached through `update`, then Scene checks the view.
-const invalidEmail = update(init().model, Message.ChangedEmail({ value: 'nope' })).model
+const lift = (message: UiMessage) => Message.GotUiMessage({ message })
 
-// Every bound ui-sdk part is one pending Mount, and Scene demands each be
-// resolved. An unknown-key Message acknowledges one without touching the Model.
-// The resolver is typed with the raw ui Message, but Scene feeds `update` the
-// view's mapped one, so the app Message goes in behind a cast.
-const ack = Message.GotUiMessage({
-  message: UiMessage.ChangedUiState({
-    component: 'none',
-    key: 'none',
-    name: 'ack',
-    value: null,
-    reason: 'test',
-  }),
-}) as never
-const resolveBinds = (count: number) =>
-  Array.from({ length: count }, () => Scene.Mount.resolve(BindPart, ack))
+// Scene has no `input` step, so a typed value cannot be driven. The invalid
+// state is reached through `update`, and Scene checks what the view renders.
+const invalidEmail = update(init().model, Message.ChangedEmail({ value: 'nope' })).model
 
 test('scene: an invalid field wires its error and description onto the control', () => {
   Scene.scene(
     { update, view },
     Scene.given(invalidEmail),
-    ...resolveBinds(13),
+    resolveBinds(lift),
     Scene.expect(Scene.selector('[data-slot="field-error"]')).toContainText('valid email'),
     Scene.expect(Scene.label('Owner email *')).toHaveAttr('aria-invalid', 'true'),
     Scene.expect(Scene.label('Owner email *')).toHaveAccessibleDescription(
       /Where project notices go/,
+    ),
+  )
+})
+
+test('scene: the assignee input is Foldkit-owned text entry; core keeps ARIA and keys', () => {
+  Scene.scene(
+    { update, view },
+    Scene.given(init().model),
+    resolveBinds(lift),
+    Scene.expect(Scene.selector('[data-slot="combobox-input"]')).toHaveHandler('input'),
+    Scene.expect(Scene.selector('[data-slot="combobox-input"]')).toHaveAttr(
+      'aria-expanded',
+      'false',
     ),
   )
 })

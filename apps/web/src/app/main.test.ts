@@ -1,13 +1,17 @@
 import { Command, given, message, model, story } from 'foldkit/story'
 import { expect, test } from 'vitest'
-import { Combobox } from '@foldlab/ui'
+import { Combobox, syncUiState } from '@foldlab/ui'
 import { CheckName, init, isFormValid, Message, update } from './main.ts'
 import { Message as UiMessage } from '@foldlab/ui'
 
-const ui = (name: string, value: unknown, key: string, component = 'combobox') =>
+// A change as bind sends it: a full snapshot of the instance's controlled options.
+const ui = (snapshot: Record<string, unknown>, key: string, component = 'combobox') =>
   Message.GotUiMessage({
-    message: UiMessage.ChangedUiState({ component, key, name, value, reason: 'test' }),
+    message: UiMessage.ChangedUiState({ component, key, snapshot, reason: 'test' }),
   })
+
+// The Command is lifted into the app Message, so it resolves with the raw ui Message.
+const sync = Command.resolveAll([syncUiState, UiMessage.CompletedUiSync()])
 
 test('name: sync rule fails first, then the async check decides', () => {
   story(
@@ -44,22 +48,73 @@ test('cross-field: changing start re-checks a touched end', () => {
   )
 })
 
-test('ui-sdk Messages flow into field validation; the app can refuse them', () => {
+const pick = (value: string | null, query = '', open = false) => ({ value, query, open })
+const pickMany = (value: ReadonlyArray<string>) => ({ value, query: '', open: true })
+
+test('ui-sdk snapshots flow into field validation, and every one is confirmed by a sync', () => {
   story(
     update,
     given(init().model),
-    message(ui('value', 'ada', 'assignee')),
+    message(ui(pick('ada', 'Ada Lovelace'), 'assignee')),
+    sync,
     model((m) => {
       expect(m.assigneeBox.value).toEqual(['ada'])
+      expect(m.assigneeBox.query).toBe('Ada Lovelace')
       expect(m.owner.assignee._tag).toBe('Valid')
     }),
-    message(ui('value', [], 'channels')),
-    message(ui('value', ['sms', 'slack'], 'channels')),
+    message(ui(pickMany(['sms', 'slack']), 'channels')),
+    sync,
     model((m) => expect(m.channels._tag).toBe('Valid')),
     // A Message for an unknown key changes nothing.
-    message(ui('value', 'grace', 'someone-else')),
+    message(ui(pick('grace'), 'someone-else')),
+    sync,
     model((m) => expect(m.assigneeBox.value).toEqual(['ada'])),
   )
+})
+
+test('a snapshot is idempotent: applying it twice equals applying it once', () => {
+  const once = update(init().model, ui(pick('ada', 'Ada Lovelace'), 'assignee')).model
+  const twice = update(once, ui(pick('ada', 'Ada Lovelace'), 'assignee')).model
+  expect(twice).toEqual(once)
+})
+
+test('a snapshot with no query resets a single combobox to its chosen label', () => {
+  const state = Combobox.update(
+    { ...Combobox.init({ key: 'k', items: [{ value: 'a', label: 'Alpha' }] }), value: ['a'] },
+    UiMessage.ChangedUiState({
+      component: 'combobox',
+      key: 'k',
+      snapshot: { value: 'a', query: undefined, open: false },
+      reason: 'imperative',
+    }),
+  )
+  expect(state.query).toBe('Alpha')
+})
+
+test('typing is a Foldkit Message: it sets the query and opens the list', () => {
+  story(
+    update,
+    given(init().model),
+    message(
+      Message.GotUiMessage({
+        message: UiMessage.TypedUiText({ component: 'combobox', key: 'assignee', value: 'al' }),
+      }),
+    ),
+    sync,
+    model((m) => {
+      expect(m.assigneeBox.query).toBe('al')
+      expect(m.assigneeBox.open).toBe(true)
+    }),
+  )
+})
+
+test('the app refuses a change by ignoring it: the sync Command carries the old state back', () => {
+  const refusing = (model: Parameters<typeof update>[0], msg: Parameters<typeof update>[1]) =>
+    msg._tag === 'GotUiMessage' && msg.message._tag === 'ChangedUiState'
+      ? update(model, Message.GotUiMessage({ message: UiMessage.CompletedUiSync() }))
+      : update(model, msg)
+  const result = refusing(init().model, ui(pick('ada', 'Ada Lovelace'), 'assignee'))
+  expect(result.model.assigneeBox.value).toEqual([])
 })
 
 test('submit validates everything at once', () => {

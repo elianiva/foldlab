@@ -1,6 +1,6 @@
 import { Layer } from 'effect'
 import { Runtime } from 'foldkit'
-import { init, Message, Model, subscriptions, update, view } from './app/main.ts'
+import { init, Message, Model, update, view } from './app/main.ts'
 import { ApiRpc } from './platform/rpc.ts'
 import { reportCrash, reportSlow, startSentry, tracerLayer } from './platform/sentry.ts'
 import './styles.css'
@@ -13,7 +13,6 @@ const application = Runtime.makeApplication({
   init,
   update,
   view,
-  subscriptions,
   resources: Layer.mergeAll(ApiRpc.layer, tracerLayer),
   container: document.getElementById('root'),
   crash: { report: reportCrash },

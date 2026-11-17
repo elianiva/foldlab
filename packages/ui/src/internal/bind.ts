@@ -6,41 +6,57 @@ import type { PrimitiveInstance } from '@ui-sdk/core'
 import { bind } from '@ui-sdk/core/renderer'
 import type { PartProps, Primitive } from './render.ts'
 
-export type Change = Readonly<{ name: string; value: unknown; reason: string }>
+/** The controlled options of one instance, by ui-sdk option name. */
+export type Snapshot = Readonly<Record<string, unknown>>
+export type Change = Readonly<{ snapshot: Snapshot; reason: string }>
 
 export type Binding = Readonly<{
   primitive: Primitive
-  // Model state in, ui-sdk options out. Pure.
+  /** Model state in, ui-sdk options out. Pure. */
   options: (state: unknown) => Readonly<Record<string, unknown>>
-  // ui-sdk callback option -> the state field it asks to change.
+  /** Option names the Model controls. */
+  controlled: ReadonlyArray<string>
+  /** ui-sdk callback option to the controlled option it asks to change. */
   callbacks: Readonly<Record<string, string>>
+  /** State after a snapshot lands. Pure and idempotent. */
+  fold: (state: unknown, snapshot: Snapshot) => unknown
+  /** DOM events Foldkit owns on a slot, so core does not attach them. */
+  foldkitEvents: Readonly<Record<string, ReadonlyArray<string>>>
 }>
 
 type Entry = {
-  readonly instance: PrimitiveInstance
-  readonly sinks: Set<(change: Change) => void>
+  instance: PrimitiveInstance
+  readonly key: string
   readonly binding: Binding
+  readonly sinks: Set<(change: Change) => void>
+  /** What the instance currently believes: the Model's state, plus changes it acked itself. */
+  state: unknown
   leases: number
 }
 
 const registry = new Map<string, Entry>()
 const registryKey = (component: string, key: string) => `${component}:${key}`
 
-const optionsFor = (
-  binding: Binding,
-  sinks: ReadonlySet<(change: Change) => void>,
-  key: string,
-  state: unknown,
-) => {
-  // One Message per change, however many parts are mounted.
-  const emit = (name: string) => (value: unknown, details?: { reason?: string }) => {
-    const [first] = sinks
-    first?.({ name, value, reason: details?.reason ?? 'unknown' })
+const snapshotOf = (binding: Binding, state: unknown): Snapshot => {
+  const options = binding.options(state)
+  return Object.fromEntries(binding.controlled.map((name) => [name, options[name]]))
+}
+
+const optionsOf = (entry: Entry) => {
+  const { binding } = entry
+  // Ack first, then tell the app: a second interaction in the same tick reads
+  // the acked value, and the Message carries everything `update` needs.
+  const callback = (option: string) => (value: unknown, details?: { reason?: string }) => {
+    const next = { ...snapshotOf(binding, entry.state), [option]: value }
+    entry.state = binding.fold(entry.state, next)
+    entry.instance.setOptions(optionsOf(entry))
+    const [sink] = entry.sinks
+    sink?.({ snapshot: snapshotOf(binding, entry.state), reason: details?.reason ?? 'unknown' })
   }
   const callbacks = Object.fromEntries(
-    Object.entries(binding.callbacks).map(([option, name]) => [option, emit(name)]),
+    Object.entries(binding.callbacks).map(([name, option]) => [name, callback(option)]),
   )
-  return { ...binding.options(state), ...callbacks, id: key }
+  return { ...binding.options(entry.state), ...callbacks, id: entry.key }
 }
 
 export const attach = (
@@ -56,19 +72,28 @@ export const attach = (
   const id = registryKey(component, key)
   let entry = registry.get(id)
   if (entry === undefined) {
-    const sinks = new Set<(change: Change) => void>()
-    entry = {
-      instance: binding.primitive(optionsFor(binding, sinks, key, state)),
-      sinks,
+    const created: Entry = {
+      // Assigned on the next line: the options it is built from close over `created`.
+      instance: undefined as unknown as PrimitiveInstance,
+      key,
       binding,
+      sinks: new Set(),
+      state,
       leases: 0,
     }
-    registry.set(id, entry)
+    created.instance = binding.primitive(optionsOf(created))
+    registry.set(id, created)
+    entry = created
   }
   const held = entry
   held.leases++
   held.sinks.add(sink)
-  const unbind = bind(held.instance.part(slot, props), element)
+  const events = binding.foldkitEvents[slot]
+  const unbind = bind(
+    held.instance.part(slot, props),
+    element,
+    events === undefined ? undefined : { by: 'framework', attaches: events },
+  )
   return () => {
     unbind()
     held.sinks.delete(sink)
@@ -79,8 +104,10 @@ export const attach = (
   }
 }
 
-// Model -> instance. Called whenever the Model's ui state changes.
+/** Model to instance. Confirms what the instance acked, or reverts it when `update` refused. */
 export const sync = (component: string, key: string, state: unknown) => {
   const entry = registry.get(registryKey(component, key))
-  entry?.instance.setOptions(optionsFor(entry.binding, entry.sinks, key, state))
+  if (entry === undefined) return
+  entry.state = state
+  entry.instance.setOptions(optionsOf(entry))
 }

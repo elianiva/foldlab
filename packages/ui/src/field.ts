@@ -28,7 +28,9 @@ export const component = defineComponent<State, Slot>({
   state: State,
   key: (state) => state.key,
   options: (state) => ({ invalid: state.invalid, disabled: state.disabled }),
+  controlled: [],
   callbacks: {},
+  fold: (state) => state,
   tags: { root: 'div', label: 'label', description: 'p', error: 'p', control: 'input' },
   bound: [],
 })
