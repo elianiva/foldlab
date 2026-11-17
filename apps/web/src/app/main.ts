@@ -33,6 +33,7 @@ import {
   Slider,
   Switch,
   Meter,
+  Sortable,
   Pagination,
   Progress,
   Separator,
@@ -60,20 +61,6 @@ const { UrlRequest } = Navigation
 export const toaster = Toast.makeToaster()
 
 // Every ui-sdk component the page uses. `confirm` sits inside `settings`: two dialogs, two states.
-/** The list as it would land if dropped now: the dragged item moved to where it hovers. */
-export const previewOrder = (
-  order: ReadonlyArray<string>,
-  dragging: string,
-  over: string,
-): ReadonlyArray<string> => {
-  const from = order.indexOf(dragging)
-  const to = order.indexOf(over)
-  if (from < 0 || to < 0 || from === to) return order
-  const next = [...order]
-  next.splice(to, 0, ...next.splice(from, 1))
-  return next
-}
-
 export const kit = Ui.define({
   assigneeBox: Combobox.component,
   channelBox: Combobox.component,
@@ -128,6 +115,7 @@ export const kit = Ui.define({
   avatarItem: Avatar.component,
   segmented: SegmentedControl.component,
   pages: Pagination.component,
+  sortable: Sortable.component,
 })
 
 // ── Model ───────────────────────────────────────────────────────────────────
@@ -148,9 +136,6 @@ export const Model = Schema.Struct({
     revealed: Schema.Boolean,
     copied: Schema.String,
     scroll: Schema.Finite,
-    order: Schema.Array(Schema.String),
-    dragging: Schema.String,
-    over: Schema.String,
     step: Schema.Finite,
   }),
   name: Text,
@@ -227,10 +212,6 @@ export const Message = defineMessageUnion({
   ClickedCopy: { text: Schema.String },
   CompletedCopy: { text: Schema.String },
   ScrolledList: { top: Schema.Finite },
-  StartedDrag: { id: Schema.String },
-  EnteredDrag: { id: Schema.String },
-  EndedDrag: {},
-  DroppedOn: { id: Schema.String },
   ChosenStep: { value: Schema.Finite },
   ClickedToast: { type: Schema.String },
   GotToast: { item: Toast.ToastItem },
@@ -295,9 +276,6 @@ export const init = (flags: Flags, url: Url.Url) => ({
       revealed: false,
       copied: '',
       scroll: 0,
-      order: ['Design', 'Build', 'Review', 'Ship'],
-      dragging: '',
-      over: '',
       step: 0,
     },
     name: FieldValidation.NotValidated({ value: '' }),
@@ -370,6 +348,7 @@ export const init = (flags: Flags, url: Url.Url) => ({
       avatarItem: Avatar.init({ key: 'avatar-item' }),
       segmented: SegmentedControl.init({ key: 'segmented', value: 'week' }),
       pages: Pagination.init({ key: 'pages', pageCount: 8 }),
+      sortable: Sortable.init({ key: 'sortable', value: ['Design', 'Build', 'Review', 'Ship'] }),
       tgBold: Toggle.init({ key: 'tg-bold' }),
       tgItalic: Toggle.init({ key: 'tg-italic' }),
       tgUnderline: Toggle.init({ key: 'tg-underline' }),
@@ -534,13 +513,6 @@ export const update = (model: Model, message: Message): Update.Return<Model, Mes
       model: { ...model, demo: { ...model.demo, revealed: !model.demo.revealed } },
     }),
     ScrolledList: ({ top }) => ({ model: { ...model, demo: { ...model.demo, scroll: top } } }),
-    StartedDrag: ({ id }) => ({ model: { ...model, demo: { ...model.demo, dragging: id } } }),
-    EnteredDrag: ({ id }) => ({ model: { ...model, demo: { ...model.demo, over: id } } }),
-    EndedDrag: () => ({ model: { ...model, demo: { ...model.demo, dragging: '', over: '' } } }),
-    DroppedOn: () => {
-      const order = previewOrder(model.demo.order, model.demo.dragging, model.demo.over)
-      return { model: { ...model, demo: { ...model.demo, order, dragging: '', over: '' } } }
-    },
     ChosenStep: ({ value }) => ({ model: { ...model, demo: { ...model.demo, step: value } } }),
     ClickedSubmit: () => {
       const next = {

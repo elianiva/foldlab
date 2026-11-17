@@ -1,7 +1,8 @@
 // Components with no ui-sdk primitive. Foldkit owns them end to end: state in the Model,
 // events through `h.On*`, no Mount. Nothing here is bound, so Scene can drive all of it.
 import { sectionOf, stacked } from './layout.ts'
-import { Message, previewOrder } from '../app/main.ts'
+import { Sortable } from '@foldlab/ui'
+import { Message } from '../app/main.ts'
 import type { Page } from './types.ts'
 
 const ROW = 32
@@ -107,35 +108,26 @@ export const nativePages: ReadonlyArray<Page> = [
     id: 'drag-and-drop',
     title: 'Drag and Drop',
     description: 'Reorder a list. The order and the dragged item live in the Model.',
-    render: ({ h, model }) => [
-      sectionOf(
-        h,
-        'Sortable',
-        [
-          h.div(
-            [h.Attribute('data-slot', 'sortable')],
-            previewOrder(model.demo.order, model.demo.dragging, model.demo.over).map((id) =>
-              h.div(
-                [
-                  h.Key(id),
-                  h.Attribute('data-slot', 'sortable-item'),
-                  ...(model.demo.dragging === id ? [h.Attribute('data-dragging', '')] : []),
-                  h.Draggable(true),
-                  h.AllowDrop(),
-                  h.OnDragStart(Message.StartedDrag({ id })),
-                  h.OnDragEnter(Message.EnteredDrag({ id })),
-                  h.OnDragEnd(Message.EndedDrag()),
-                  h.OnDrop(Message.DroppedOn({ id })),
-                ],
-                [id],
+    render: ({ h, model, ui }) => {
+      const sortable = Sortable.parts(model.ui.sortable, h, ui)
+      return [
+        sectionOf(
+          h,
+          'Sortable',
+          [
+            sortable.root(
+              {},
+              [h.AriaLabel('Steps')],
+              Sortable.orderOf(model.ui.sortable).map((id) =>
+                sortable.item({ value: id }, [], [id]),
               ),
             ),
-          ),
-        ],
-        'h.div([h.Draggable(true), h.AllowDrop(), h.OnDragStart(...), h.OnDrop(...)], [id])',
-        stacked,
-      ),
-    ],
+          ],
+          'const s = Sortable.parts(state, h, ui)\\ns.root({}, [], Sortable.orderOf(state).map((id) => s.item({ value: id }, [], [id])))',
+          stacked,
+        ),
+      ]
+    },
   },
   {
     id: 'questionnaire',
@@ -187,23 +179,5 @@ export const nativePages: ReadonlyArray<Page> = [
         ),
       ]
     },
-  },
-  {
-    id: 'animation',
-    title: 'Animation',
-    description: 'Named keyframes the theme provides. Respects reduced motion.',
-    render: ({ h }) => [
-      sectionOf(
-        h,
-        'Presets',
-        ['fade', 'slide', 'pulse', 'spin'].map((name) =>
-          h.div(
-            [h.Attribute('data-slot', 'animation'), h.Attribute('data-animation', name)],
-            [name],
-          ),
-        ),
-        "h.div([data-slot animation, data-animation 'fade'], ['fade'])",
-      ),
-    ],
   },
 ]

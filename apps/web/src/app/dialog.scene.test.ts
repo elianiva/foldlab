@@ -10,8 +10,8 @@ import { urlOf } from './route.ts'
 const lift = (message: UiMessage) => Message.GotUiMessage({ message })
 const base = init({ anchorId: '' }, urlOf('/form')).model
 const withSettings = (settings: Dialog.State) => ({ ...base, ui: { ...base.ui, settings } })
-// Two comboboxes (3 parts each) and the accordion (7): the page's own Mounts.
-const PAGE_MOUNTS = 13
+// Two comboboxes (3 parts each) and the accordion (9: its two panels stay mounted): the page's own Mounts.
+const PAGE_MOUNTS = 15
 const bindMounts = (sim: { mounts: ReadonlyArray<{ name: string }> }) =>
   sim.mounts.filter((mount) => mount.name === BindPart.name).length
 
