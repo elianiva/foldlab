@@ -13,10 +13,10 @@ No ui-sdk type appears in the public API.
 
 Foldkit's `view` receives `(model, h)`. It cannot read a store, and the Model is a serialized Schema. ui-sdk computes attributes from a store that lives in an instance, and `present` decides which parts exist.
 
-So the adapter keeps the instance out of the Model and out of the view. State is plain data in the Model. The adapter turns that data into attributes in a pure step, and into behavior in a separate step.
+So the adapter keeps the instance out of the Model and out of the view. State is plain data in the Model. The adapter turns that data into attributes in a step that is pure given the Model, and into behavior in a separate step.
 
 ```
-Model slice ──options()──► render phase (pure) ──► attributes ──► Html
+Model slice ──options()──► render phase (pure given the Model) ──► attributes ──► Html
      ▲                                                              │
      │                                                       OnMount│(bind)
      │                                                              ▼
@@ -265,9 +265,21 @@ Do not put `h.OnClick` on a slot to change the ui-sdk state. It does not reach c
 ## What it makes hard to test
 
 - **Behavior.** Stories (`update` only) cover the Message flow and validation fully, with no DOM. Real keyboard and focus behavior only exists after `bind`, so only a browser run covers it. I ran that by hand with `agent-browser`: accordion toggle, name check, combobox filter and select, multi-select.
-- **View.** Scenes can check attributes, ARIA wiring and structure from the render phase. That is the payoff of the pure phase.
+- **View.** Scenes can check attributes, ARIA wiring and structure from the render phase. That is the payoff of a phase that is pure given the Model.
 - **Mounts.** See Scene limitations.
 - **Binding.** `packages/ui/src/bind.test.ts` runs the bind phase in happy-dom: one change per click for a doubly attached element, entry reuse across `sync`, and the guard veto.
+
+## Lifecycle state
+
+**The render phase is pure given the Model, not pure given the semantic state.** A primitive whose `present` depends on a leave transition holds state that no semantic field can derive. `open` says what the user asked for. Whether the content is still on screen while it leaves is lifecycle, and only the instance's animation knows when it ends. Three parts handle it, once, for every such component:
+
+1. **The lifecycle bit lives in the Model.** Add a field (`mounted`) next to the semantic one (`open`). `fold` sets it to true when the semantic state turns on, and leaves it alone when the semantic state turns off.
+2. **`renderState` patches it over the throwaway render instance.** A fresh instance derives the bit from the semantic state, so it would drop the part the moment `open` turned false. `renderState: (state) => ({ mounted: state.mounted })` makes `present` and `attrs` read what the Model says. The app decides which parts exist.
+3. **`completions` carries the end of the animation.** The end is not a request: nothing can refuse it, so it bypasses `guard`. `completions: { onOpenChangeComplete: 'mounted' }` folds the instance's completion callback into the same snapshot key, and the Message clears the bit.
+
+State that ui-sdk learns only when parts bind (`titled`, `described`) follows the same pattern: the Model says it up front, `renderState` patches it in.
+
+Toast, drawer, menu, popover and tooltip all fit this rule. Each component's section says which field is its lifecycle bit and which callback ends it, and does not restate the rule. Dialog (below) is the first.
 
 ## Scope
 
@@ -287,12 +299,10 @@ Dialog is the component that stresses the two design choices that combobox and a
 | `completions` (new)                   | `onOpenChangeComplete` to `mounted`                                                         |
 | `fold`                                | `open` from the snapshot. `mounted` from the snapshot when present, else `mounted or open`. |
 | `renderState` (new, on the component) | `{ mounted, titled, described }` patched over a fresh instance in the render phase          |
+| `lockSlot` (new)                      | `content`: the slot whose bind takes the scroll lock, for the [stacking check](#stacking)   |
 | `guard`, `foldkitEvents`              | not used. Escape, outside press and focus are core's.                                       |
 
-Two additions, 32 lines across `core.ts`, `internal/bind.ts` and `internal/render.ts`:
-
-- **`renderState`.** ui-sdk keeps `mounted` in the instance. It stays true while the exit animation runs, and `present` for the content and the backdrop reads it. A fresh render instance derives `mounted` from `open`, so a pure render drops the content the moment `open` turns false, and the exit animation never plays. The Model now carries `mounted`, and the render phase patches it in. The app decides which parts exist.
-- **`completions`.** `onOpenChangeComplete` is not a change request, so it bypasses the guard and sets a snapshot key. It clears `mounted` when the animation settles. `titled` and `described` follow the same pattern: ui-sdk learns them when title and description parts bind, and the Model says so up front.
+Two additions, 32 lines across `core.ts`, `internal/bind.ts` and `internal/render.ts`, implement the [lifecycle rule](#lifecycle-state). For dialog the lifecycle bit is `mounted` (ended by `onOpenChangeComplete`), and `titled` and `described` ride on `renderState` too. ui-sdk keeps `mounted` in the instance and clears it when the exit animation settles. Without the rule, the content vanished the moment `open` turned false and the exit never played.
 
 ### Portals and the registry
 
@@ -342,13 +352,25 @@ The `@foldkit/ui` leak needs the Model to be replaced as the view unmounts. Its 
 
 One caveat: `@foldkit/ui` renders its closed dialog's children (`<dialog>` with the panel), so `[data-slot="dialog-content"]` also matches a closed `@foldkit/ui` panel. The adapter renders nothing when closed. Select by id in tests.
 
-### Mixing providers: where it breaks
-
-Both providers implement scroll lock, inert and focus themselves. With an `@foldkit/ui` dialog open and an adapter dialog opened over it, closing the `@foldkit/ui` one first cleared `html` overflow while the adapter dialog was still open. Focus then went to `body`. The two locks do not coordinate. Safe: both providers on one page, with modals that never stack across providers.
-
 ### Recommendation
 
-Use the adapter for dialogs in this kit. The dialog needed 32 lines of adapter change, not per-element portal plumbing, and it duplicates no coordination of its own: core owns focus, inert and lock. Mix in `@foldkit/ui` only for components with no adapter yet, and do not stack a modal from one provider on a modal from the other. If the kit ever needs a stack across providers, one provider's lock has to become the owner.
+Use the adapter for dialogs in this kit. The dialog needed 32 lines of adapter change, not per-element portal plumbing, and it duplicates no coordination of its own: core owns focus, inert and lock. See [Stacking](#stacking) for how it coexists with `@foldkit/ui`, and [Dependencies](#dependencies) for where `@foldkit/ui` lives.
+
+## Stacking
+
+**One provider per stacking domain, and the adapter owns modals.** A stacking domain is a set of overlays that lock scroll, make the page inert and trap focus together: every modal on a page. Both providers implement those themselves, and the implementations do not coordinate. With an `@foldkit/ui` dialog open and an adapter dialog opened over it, closing the `@foldkit/ui` one first cleared `html` overflow while the adapter dialog was still open, and focus fell to `body`.
+
+This is a correctness argument, not a preference. The adapter's release follows the DOM node through the registry. `@foldkit/ui`'s release follows the Model: its `Unmounted` handler releases only while the Model is still open or animating. Replace the Model in the same update that unmounts the view and `overflow: hidden` stays on `html`. Notes and a reproduction for the upstream issue: [upstream-notes.md](upstream-notes.md).
+
+**Dev-mode check.** When an adapter modal binds (the component's `lockSlot`) and the document already carries a scroll lock that nobody in our registry wrote, `console.warn` fires once. Core writes the lock and we cannot hook the write, so we stamp `data-foldlab-lock` on `<html>` while any adapter modal holds it. A lock with no marker is someone else's. The check runs before core binds, and only when `import.meta.env.DEV` is set. It covers the case `@foldkit/ui` first, adapter second. The reverse order is not detected. Tests: `bind.test.ts` (foreign lock warns once, own lock does not, the marker leaves with the last modal) and a browser run of both orders.
+
+We do not patch `@foldkit/ui`.
+
+## Dependencies
+
+The kit's peer surface is `foldkit` and `effect`, and nothing else. `@foldkit/ui` is a dev dependency of `apps/web`, where the comparison lives. It asks for `effect ~4.1.0` and the template pins 4.0.0, so the 4.0 versus 4.1 question is now a demo question. If `@foldkit/ui` ever has to enter the shipped surface, bump `effect` to 4.1 and prove it with check, typecheck, tests and build in the same commit.
+
+`packages/ui/src/boundaries.test.ts` enforces this: `@foldkit/ui` appears in no manifest field of the kit and no kit source imports it, and the peer surface is exactly `effect` and `foldkit`. `@ui-sdk/core` is the kit's one runtime dependency, pinned.
 
 ## Bumping `@ui-sdk/core`
 

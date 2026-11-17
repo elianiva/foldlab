@@ -54,6 +54,8 @@ export type Component<State, Slot extends string> = Readonly<{
   controlled: ReadonlyArray<string>
   /** ui-sdk callback option to the controlled option it asks to change. */
   callbacks: Readonly<Record<string, string>>
+  /** The slot whose bind takes the document scroll lock. Set it on a modal's content. */
+  lockSlot?: Slot
   /** Completion callbacks to the snapshot key they set (`onOpenChangeComplete: 'mounted'`). */
   completions?: Readonly<Record<string, string>>
   /** Internal ui-sdk state the Model owns, patched over a fresh instance in the render phase. */
@@ -86,6 +88,7 @@ export const defineComponent = <State, Slot extends string>(
     controlled: component.controlled,
     callbacks: component.callbacks,
     completions: component.completions ?? {},
+    ...(component.lockSlot === undefined ? {} : { lockSlot: component.lockSlot }),
     fold: (state, snapshot) => component.fold(decode(state), snapshot),
     guard: (state, snapshot) => component.guard?.(decode(state), snapshot) ?? true,
     foldkitEvents: component.text === undefined ? {} : { [component.text]: ['input'] },

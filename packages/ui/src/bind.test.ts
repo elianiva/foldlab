@@ -1,12 +1,14 @@
 // @vitest-environment happy-dom
 import { accordion } from '@ui-sdk/core/accordion'
-import { afterEach, expect, test } from 'vitest'
+import { afterEach, expect, test, vi } from 'vitest'
 import {
   attach,
   type Binding,
   type Change,
   destroyAll,
   liveInstance,
+  LOCK_MARKER,
+  resetLockWarning,
   sync,
 } from './internal/bind.ts'
 import { primitiveOf } from './internal/render.ts'
@@ -112,4 +114,41 @@ test('two dialogs keep independent state: one open, one finishing its exit', asy
   expect(liveInstance('dialog', 'b')?.get()).toMatchObject({ open: false, mounted: false })
   expect(aChanges).toEqual([])
   expect(bChanges.map((c) => c.snapshot['mounted'])).toEqual([false])
+})
+
+const lockBinding = (): Binding => ({ ...make(), lockSlot: 'trigger' })
+const foreign = () => document.documentElement.style.setProperty('overflow', 'hidden')
+
+test('a scroll lock nobody in the registry wrote warns once', () => {
+  const warn = vi.spyOn(console, 'warn').mockImplementation(() => {})
+  resetLockWarning()
+  foreign()
+  mount(lockBinding(), trigger(), [])
+  attach('accordion', lockBinding(), 'other', state, 'trigger', {}, trigger(), () => {})
+  expect(warn).toHaveBeenCalledTimes(1)
+  expect(warn.mock.calls[0]?.[0]).toContain('another provider')
+  warn.mockRestore()
+  document.documentElement.style.removeProperty('overflow')
+})
+
+test('our own lock is stamped, so a second adapter modal does not warn', () => {
+  const warn = vi.spyOn(console, 'warn').mockImplementation(() => {})
+  resetLockWarning()
+  const releaseFirst = mount(lockBinding(), trigger(), [])
+  expect(document.documentElement.hasAttribute(LOCK_MARKER)).toBe(true)
+  // Core's own lock lands after our stamp, as it does for a real modal.
+  foreign()
+  attach('accordion', lockBinding(), 'second', state, 'trigger', {}, trigger(), () => {})
+  expect(warn).not.toHaveBeenCalled()
+  releaseFirst()
+  document.documentElement.style.removeProperty('overflow')
+  warn.mockRestore()
+})
+
+test('the marker is removed with the last modal, and destroyAll clears it', () => {
+  resetLockWarning()
+  const release = mount(lockBinding(), trigger(), [])
+  expect(document.documentElement.hasAttribute(LOCK_MARKER)).toBe(true)
+  release()
+  expect(document.documentElement.hasAttribute(LOCK_MARKER)).toBe(false)
 })

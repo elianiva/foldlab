@@ -28,6 +28,8 @@ export type Binding = Readonly<{
    * it asked for. False means: do not ack, do not call setOptions.
    */
   guard: (state: unknown, snapshot: Snapshot) => boolean
+  /** The slot whose bind takes the document scroll lock (a modal's content). */
+  lockSlot?: string
   /** DOM events Foldkit owns on a slot, so core does not attach them. */
   foldkitEvents: Readonly<Record<string, ReadonlyArray<string>>>
 }>
@@ -45,6 +47,44 @@ type Entry = {
 }
 
 const registry = new Map<string, Entry>()
+
+// ── Scroll-lock ownership ───────────────────────────────────────────────────
+// Dev-mode check behind the stacking rule: one provider per stacking domain.
+// Core writes the lock itself. We cannot hook that write, so we stamp a marker
+// on the document while any adapter modal holds the lock, and a lock with no
+// marker belongs to someone else.
+export const LOCK_MARKER = 'data-foldlab-lock'
+const lockOwners = new Set<symbol>()
+let warnedAboutForeignLock = false
+
+const isDev = () => (import.meta as { env?: { DEV?: boolean } }).env?.DEV === true
+
+const foreignLock = (doc: Document) =>
+  !doc.documentElement.hasAttribute(LOCK_MARKER) &&
+  (doc.documentElement.style.overflow === 'hidden' || doc.body.style.overflow === 'hidden')
+
+const claimLock = (doc: Document): (() => void) => {
+  if (isDev() && !warnedAboutForeignLock && lockOwners.size === 0 && foreignLock(doc)) {
+    warnedAboutForeignLock = true
+    console.warn(
+      '[foldlab] A scroll lock written by another provider (for example @foldkit/ui) is active ' +
+        'while an adapter modal opens. Locks from two providers do not coordinate: stack modals ' +
+        'within one provider. See docs/adapter-api.md, "Stacking".',
+    )
+  }
+  const owner = Symbol('lock')
+  lockOwners.add(owner)
+  doc.documentElement.setAttribute(LOCK_MARKER, '')
+  return () => {
+    lockOwners.delete(owner)
+    if (lockOwners.size === 0) doc.documentElement.removeAttribute(LOCK_MARKER)
+  }
+}
+
+/** Forgets the one-time warning. Tests only. */
+export const resetLockWarning = () => {
+  warnedAboutForeignLock = false
+}
 const registryKey = (component: string, key: string) => `${component}:${key}`
 
 const snapshotOf = (binding: Binding, state: unknown): Snapshot => {
@@ -119,6 +159,8 @@ export const attach = (
   // Lease first, so replacing a binding never takes the count to zero.
   held.bound.get(element)?.()
   const events = binding.foldkitEvents[slot]
+  // Before `bind`: core takes the lock inside it, so the check sees what was there first.
+  const releaseLock = binding.lockSlot === slot ? claimLock(element.ownerDocument) : undefined
   const unbind = bind(
     held.instance.part(slot, props),
     element,
@@ -129,6 +171,7 @@ export const attach = (
     if (released) return
     released = true
     unbind()
+    releaseLock?.()
     if (held.bound.get(element) === release) held.bound.delete(element)
     held.sinks.delete(sink)
     if (--held.leases === 0) {
@@ -148,6 +191,7 @@ export const liveInstance = (component: string, key: string) =>
 export const destroyAll = () => {
   for (const entry of registry.values()) entry.instance.destroy()
   registry.clear()
+  lockOwners.clear()
 }
 
 const hot = (import.meta as { hot?: { dispose: (callback: () => void) => void } }).hot

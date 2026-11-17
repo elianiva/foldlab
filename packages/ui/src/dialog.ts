@@ -50,6 +50,7 @@ export const component = defineComponent<State, Slot>({
   controlled: ['open'],
   callbacks: { onOpenChange: 'open' },
   completions: { onOpenChangeComplete: 'mounted' },
+  lockSlot: 'content',
   fold,
   renderState: (state) => ({
     mounted: state.mounted,
