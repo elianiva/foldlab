@@ -1,5 +1,5 @@
 {
-  "name": "@template/rpc",
+  "name": "@foldlab/rpc",
   "private": true,
   "type": "module",
   "exports": {

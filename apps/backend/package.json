@@ -1,5 +1,5 @@
 {
-  "name": "@template/backend",
+  "name": "@foldlab/backend",
   "private": true,
   "type": "module",
   "scripts": {
@@ -7,9 +7,9 @@
     "test": "vitest run"
   },
   "dependencies": {
+    "@foldlab/rpc": "workspace:*",
     "@sentry/cloudflare": "11.11.0",
     "@sentry/effect": "11.11.0",
-    "@template/rpc": "workspace:*",
     "effect": "4.0.0"
   }
 }

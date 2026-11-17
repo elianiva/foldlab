@@ -1,4 +1,4 @@
-# Cafe
+# Foldlab
 
 Cloudflare · Alchemy · Foldkit · Effect.
 
@@ -18,8 +18,21 @@ The starter also includes:
 - A per-IP rate limit at the website Worker that fails open.
 - A D1 store recipe, a platform adapter seam, and a manual deploy workflow.
 
+## Foldlab
+
+An experiment: a ui-sdk adapter for Foldkit, styled with PandaCSS. Read
+[Adapter API](docs/adapter-api.md). `packages/ui` is the adapter; the demo form
+is in `apps/web/src/app/main.ts`.
+
+The demo runs without Cloudflare credentials:
+
+```sh
+cd apps/web && pnpm dev
+```
+
 ## Apps and packages
 
+- `packages/ui` — the ui-sdk adapter and the Panda preset.
 - `apps/web` — Foldkit application, website Worker, and static assets.
 - `apps/backend` — Effect RPC handlers, the API Worker entry, and the platform adapters.
 - `packages/rpc` — the wire contract: RPC groups, schemas, declared errors, and the API path prefix.

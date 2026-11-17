@@ -3,6 +3,7 @@ packages:
   - packages/*
   - examples/*
 allowBuilds:
+  '@parcel/watcher': true
   lefthook: true
   workerd: true
 overrides:
