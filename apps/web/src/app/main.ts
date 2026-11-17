@@ -288,16 +288,20 @@ const stack = css({
   display: 'flex',
   flexDirection: 'column',
   gap: '1rem',
-  maxWidth: '32rem',
-  margin: '2rem auto',
+  maxWidth: '36rem',
+  margin: '2.5rem auto',
+  padding: '0 1rem',
 })
 const group = css({
   display: 'flex',
   flexDirection: 'column',
-  gap: '0.25rem',
-  border: '1px solid',
-  padding: '1rem',
+  gap: '0.5rem',
+  border: '1px solid var(--fl-border)',
+  borderRadius: 'var(--fl-radius)',
+  background: 'var(--fl-surface)',
+  padding: '1rem 1.1rem',
 })
+const row = css({ display: 'flex', flexWrap: 'wrap', gap: '0.5rem' })
 
 const uiOf = (model: Model): PartsConfig<Message> => ({
   toMessage: (message: UiMessage) => Message.GotUiMessage({ message }),
@@ -471,7 +475,17 @@ const dialogs = (h: HtmlBuilder<Message>, model: Model): Html => {
     [h.Class(group)],
     [
       h.h2([], ['Dialogs']),
-      d.trigger({}, [], ['Open (ui-sdk adapter)']),
+      h.div(
+        [h.Class(row)],
+        [
+          d.trigger({}, [], ['Open (ui-sdk adapter)']),
+          h.button(
+            [h.Type('button'), h.OnClick(Message.ClickedOpenFkDialog())],
+            ['Open (@foldkit/ui)'],
+          ),
+          h.button([h.Type('button'), h.OnClick(Message.ClickedToggleDialogs())], ['Drop dialogs']),
+        ],
+      ),
       d.backdrop({}, [], []),
       d.content(
         {},
@@ -484,11 +498,6 @@ const dialogs = (h: HtmlBuilder<Message>, model: Model): Html => {
           c.content({}, [], [c.title({}, [], ['Delete project?']), c.close({}, [], ['Cancel'])]),
           d.close({}, [], ['Close']),
         ],
-      ),
-      h.button([h.Type('button'), h.OnClick(Message.ClickedToggleDialogs())], ['Drop dialogs']),
-      h.button(
-        [h.Type('button'), h.OnClick(Message.ClickedOpenFkDialog())],
-        ['Open (@foldkit/ui)'],
       ),
       h.submodel({
         slotId: 'fk-settings',
