@@ -33,6 +33,28 @@ export const foldlab = definePreset({
     '[data-slot="field-control"][data-invalid], [data-slot="combobox-input"][data-invalid]': {
       borderColor: 'crimson',
     },
+    // One theme for both providers: ui-sdk's parts and `@foldkit/ui`'s, stamped.
+    '[data-slot="dialog-backdrop"]': {
+      position: 'fixed',
+      inset: 0,
+      background: 'rgb(0 0 0 / 0.4)',
+      transition: 'opacity 150ms',
+    },
+    '[data-slot="dialog-content"]': {
+      position: 'fixed',
+      top: '50%',
+      left: '50%',
+      translate: '-50% -50%',
+      minWidth: '20rem',
+      padding: '1rem',
+      border: '1px solid currentColor',
+      background: 'Canvas',
+      color: 'CanvasText',
+      transition: 'opacity 150ms',
+    },
+    '[data-slot="dialog-backdrop"][data-closed], [data-slot="dialog-content"][data-closed]': {
+      opacity: 0,
+    },
     ':focus-visible': { outline: '2px solid currentColor', outlineOffset: '2px' },
   },
 })

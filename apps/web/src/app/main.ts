@@ -1,14 +1,17 @@
 import { Effect, Schema } from 'effect'
 import { Command, FieldValidation, Update } from 'foldkit'
+import { Dialog as FkDialog } from '@foldkit/ui'
 import type { Document, Html, HtmlBuilder } from 'foldkit/html'
 import { defineMessageUnion } from 'foldkit/message'
 import {
   Accordion,
   Combobox,
+  Dialog,
   Field,
   Message as UiMessage,
   specOf,
   syncUiState,
+  stamp,
   type Spec,
 } from '@foldlab/ui'
 import { css } from '../../styled-system/css'
@@ -27,6 +30,12 @@ export const Model = Schema.Struct({
   assigneeBox: Combobox.State,
   channelBox: Combobox.State,
   help: Accordion.State,
+  // The same dialog twice: through the adapter, and from @foldkit/ui.
+  settings: Dialog.State,
+  // Nested inside `settings`: two dialogs in two states at once.
+  confirm: Dialog.State,
+  dialogsVisible: Schema.Boolean,
+  fkDialog: FkDialog.Model,
   submitted: Schema.Boolean,
 })
 export type Model = typeof Model.Type
@@ -80,6 +89,9 @@ export const Message = defineMessageUnion({
   ChangedEnd: { value: Schema.String },
   GotNameAvailability: { name: Schema.String, taken: Schema.Boolean },
   GotUiMessage: { message: UiMessage },
+  GotFkDialog: { message: FkDialog.Message },
+  ClickedOpenFkDialog: {},
+  ClickedToggleDialogs: {},
   ClickedSubmit: {},
 })
 export type Message = typeof Message.Type
@@ -110,6 +122,10 @@ export const init = () => ({
     assigneeBox: Combobox.init({ key: 'assignee', items: people }),
     channelBox: Combobox.init({ key: 'channels', items: channelItems, multiple: true }),
     help: Accordion.init({ key: 'help', multiple: true }),
+    settings: Dialog.init({ key: 'settings', described: true }),
+    confirm: Dialog.init({ key: 'confirm', described: false }),
+    dialogsVisible: true,
+    fkDialog: FkDialog.init({ id: 'fk-settings', isAnimated: true }),
     submitted: false,
   }),
 })
@@ -188,6 +204,8 @@ export const update = (model: Model, message: Message): Update.Return<Model, Mes
       const assigneeBox = Combobox.update(model.assigneeBox, ui)
       const channelBox = Combobox.update(model.channelBox, ui)
       const help = Accordion.update(model.help, ui)
+      const settings = Dialog.update(model.settings, ui)
+      const confirm = Dialog.update(model.confirm, ui)
       const assigneeValue = assigneeBox.value[0] ?? ''
       const assigneeChanged = assigneeValue !== (model.assigneeBox.value[0] ?? '')
       const channelsChanged = channelBox.value.join() !== model.channelBox.value.join()
@@ -197,6 +215,8 @@ export const update = (model: Model, message: Message): Update.Return<Model, Mes
           assigneeBox,
           channelBox,
           help,
+          settings,
+          confirm,
           owner: assigneeChanged
             ? { ...model.owner, assignee: FieldValidation.validate(rules.assignee)(assigneeValue) }
             : model.owner,
@@ -207,10 +227,37 @@ export const update = (model: Model, message: Message): Update.Return<Model, Mes
         // Confirms the ack, or reverts it if this update refused the change.
         commands: [
           Command.mapMessage(
-            syncUiState({ specs: uiSpecs({ assigneeBox, channelBox, help }) }),
+            syncUiState({ specs: uiSpecs({ assigneeBox, channelBox, help, settings, confirm }) }),
             (message) => Message.GotUiMessage({ message }),
           ),
         ],
+      }
+    },
+    GotFkDialog: ({ message: child }) => {
+      const result = FkDialog.update(model.fkDialog, child)
+      return {
+        model: { ...model, fkDialog: result.model },
+        commands: Command.mapMessages(result.commands ?? [], (message) =>
+          Message.GotFkDialog({ message }),
+        ),
+      }
+    },
+    // Unmounts every dialog at once, open or closing: the page-navigation case.
+    ClickedToggleDialogs: () => ({
+      model: {
+        ...model,
+        dialogsVisible: !model.dialogsVisible,
+        settings: Dialog.init({ key: 'settings', described: true }),
+        confirm: Dialog.init({ key: 'confirm', described: false }),
+      },
+    }),
+    ClickedOpenFkDialog: () => {
+      const result = FkDialog.open(model.fkDialog)
+      return {
+        model: { ...model, fkDialog: result.model },
+        commands: Command.mapMessages(result.commands ?? [], (message) =>
+          Message.GotFkDialog({ message }),
+        ),
       }
     },
     ClickedSubmit: () => {
@@ -236,11 +283,13 @@ export const update = (model: Model, message: Message): Update.Return<Model, Mes
 // ── Bind phase wiring ───────────────────────────────────────────────────────
 
 const uiSpecs = (
-  state: Pick<Model, 'assigneeBox' | 'channelBox' | 'help'>,
+  state: Pick<Model, 'assigneeBox' | 'channelBox' | 'help' | 'settings' | 'confirm'>,
 ): ReadonlyArray<Spec> => [
   specOf(Combobox.component, state.assigneeBox),
   specOf(Combobox.component, state.channelBox),
   specOf(Accordion.component, state.help),
+  specOf(Dialog.component, state.settings),
+  specOf(Dialog.component, state.confirm),
 ]
 
 // ── View ────────────────────────────────────────────────────────────────────
@@ -401,6 +450,78 @@ const helpSection = (h: HtmlBuilder<Message>, model: Model): Html => {
   )
 }
 
+const dialogs = (h: HtmlBuilder<Message>, model: Model): Html => {
+  const d = Dialog.parts(model.settings, h, ui)
+  const c = Dialog.parts(model.confirm, h, ui)
+  if (!model.dialogsVisible) {
+    return h.section(
+      [h.Class(group)],
+      [
+        h.button(
+          [h.Type('button'), h.OnClick(Message.ClickedToggleDialogs())],
+          ['Restore dialogs'],
+        ),
+      ],
+    )
+  }
+  return h.section(
+    [h.Class(group)],
+    [
+      h.h2([], ['Dialogs']),
+      d.trigger({}, [], ['Open (ui-sdk adapter)']),
+      d.backdrop({}, [], []),
+      d.content(
+        {},
+        [],
+        [
+          d.title({}, [], ['Project settings']),
+          d.description({}, [], ['Rendered through @foldlab/ui.']),
+          c.trigger({}, [], ['Delete project']),
+          c.backdrop({}, [], []),
+          c.content({}, [], [c.title({}, [], ['Delete project?']), c.close({}, [], ['Cancel'])]),
+          d.close({}, [], ['Close']),
+        ],
+      ),
+      h.button([h.Type('button'), h.OnClick(Message.ClickedToggleDialogs())], ['Drop dialogs']),
+      h.button(
+        [h.Type('button'), h.OnClick(Message.ClickedOpenFkDialog())],
+        ['Open (@foldkit/ui)'],
+      ),
+      h.submodel({
+        slotId: 'fk-settings',
+        model: model.fkDialog,
+        view: FkDialog.view,
+        toParentMessage: (message) => Message.GotFkDialog({ message }),
+        viewInputs: {
+          hasDescription: true,
+          // Our data-slot goes on the attribute arrays @foldkit/ui hands us.
+          toView: (r) =>
+            h.dialog(
+              [...r.dialog],
+              [
+                h.div([...r.backdrop, ...stamp(h, 'dialog-backdrop')], []),
+                h.div(
+                  [...r.panel, ...stamp(h, 'dialog-content')],
+                  [
+                    h.h2([...r.title, ...stamp(h, 'dialog-title')], ['Project settings']),
+                    h.p(
+                      [...r.description, ...stamp(h, 'dialog-description')],
+                      ['Rendered through @foldkit/ui.'],
+                    ),
+                    h.button(
+                      [...r.closeButton, ...r.initialFocus, ...stamp(h, 'dialog-close')],
+                      ['Close'],
+                    ),
+                  ],
+                ),
+              ],
+            ),
+        },
+      }),
+    ],
+  )
+}
+
 export const view = (model: Model, h: HtmlBuilder<Message>): Document => ({
   title: 'foldlab',
   body: h.main(
@@ -461,6 +582,7 @@ export const view = (model: Model, h: HtmlBuilder<Message>): Document => ({
       h.button([h.Type('button'), h.OnClick(Message.ClickedSubmit())], ['Create project']),
       model.submitted ? status(h, 'Project created.') : null,
       helpSection(h, model),
+      dialogs(h, model),
     ],
   ),
 })

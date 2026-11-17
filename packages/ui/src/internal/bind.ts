@@ -19,6 +19,8 @@ export type Binding = Readonly<{
   controlled: ReadonlyArray<string>
   /** ui-sdk callback option to the controlled option it asks to change. */
   callbacks: Readonly<Record<string, string>>
+  /** Completion callbacks (`onOpenChangeComplete`): callback option to the snapshot key it sets. Never guarded. */
+  completions: Readonly<Record<string, string>>
   /** State after a snapshot lands. Pure and idempotent. */
   fold: (state: unknown, snapshot: Snapshot) => unknown
   /**
@@ -70,7 +72,18 @@ const optionsOf = (entry: Entry) => {
   const callbacks = Object.fromEntries(
     Object.entries(binding.callbacks).map(([name, option]) => [name, callback(option)]),
   )
-  return { ...binding.options(entry.state), ...callbacks, id: entry.key }
+  // A completion is not a request: the instance already finished, so it is
+  // folded without a guard and the Model learns of it.
+  const completion = (key: string) => (value: unknown, details?: { reason?: string }) => {
+    const next = { ...snapshotOf(binding, entry.state), [key]: value }
+    entry.state = binding.fold(entry.state, next)
+    const [sink] = entry.sinks
+    sink?.({ snapshot: next, reason: details?.reason ?? 'complete', refused: false })
+  }
+  const completions = Object.fromEntries(
+    Object.entries(binding.completions).map(([name, key]) => [name, completion(key)]),
+  )
+  return { ...binding.options(entry.state), ...callbacks, ...completions, id: entry.key }
 }
 
 export const attach = (

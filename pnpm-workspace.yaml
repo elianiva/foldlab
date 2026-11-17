@@ -32,3 +32,5 @@ minimumReleaseAgeExclude:
   - '@cloudflare/workerd-windows-64@1.20261008.1'
   - workerd@1.20261008.1
   - '@effect/language-service@0.87.5'
+  - '@foldkit/ui@0.170.0'
+  - '@floating-ui/dom@1.8.0'

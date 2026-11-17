@@ -1,5 +1,7 @@
 export * as Accordion from './accordion.ts'
 export * as Combobox from './combobox.ts'
+export * as Dialog from './dialog.ts'
 export * as Field from './field.ts'
 export { BindPart, Message, specOf, syncUiState } from './core.ts'
 export type { Spec } from './core.ts'
+export { stamp } from './stamp.ts'

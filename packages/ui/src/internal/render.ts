@@ -22,11 +22,14 @@ export type Rendered = {
 export const renderPhase = (
   primitive: Primitive,
   options: Readonly<Record<string, unknown>>,
+  // Internal state the Model knows and a fresh instance cannot, such as a
+  // dialog that is closing but still mounted. The app owns which parts exist.
+  patch: Readonly<Record<string, unknown>> = {},
 ): Rendered => {
   // Controlled options reach `store` through the primitive's own `sync`, so
   // `get()` is exactly what these options mean, with no hidden bookkeeping.
   const instance = primitive({ ...options })
-  const state = instance.get()
+  const state = { ...instance.get(), ...patch }
   // No bind ever happens, so nothing releases the instance. Drop it once the
   // view that asked for it has finished building.
   queueMicrotask(() => instance.destroy())

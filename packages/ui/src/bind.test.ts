@@ -19,6 +19,7 @@ const make = (guard: Binding['guard'] = () => true): Binding => ({
   options: (state) => ({ value: [...(state as State).value] }),
   controlled: ['value'],
   callbacks: { onValueChange: 'value' },
+  completions: {},
   fold: (state, snapshot) => ({ ...(state as State), value: strings(snapshot['value']) }),
   guard,
   foldkitEvents: {},
@@ -88,4 +89,27 @@ test('a guard veto does not move the instance and emits a refused change', () =>
   el.click()
   expect(changes).toHaveLength(2)
   expect(changes[1]?.snapshot).toEqual({ value: ['a'] })
+})
+
+test('two dialogs keep independent state: one open, one finishing its exit', async () => {
+  const { Dialog } = await import('./index.ts')
+  const { bindingFor } = await import('./core.ts')
+  const binding = bindingFor('dialog')
+  if (binding === undefined) throw new Error('dialog is not registered')
+  const open = (key: string, isOpen: boolean) => Dialog.init({ key, open: isOpen })
+  const aChanges: Array<Change> = []
+  const bChanges: Array<Change> = []
+  const a = trigger()
+  const b = trigger()
+  attach('dialog', binding, 'a', open('a', true), 'trigger', {}, a, (c) => aChanges.push(c))
+  attach('dialog', binding, 'b', open('b', true), 'trigger', {}, b, (c) => bChanges.push(c))
+  expect(liveInstance('dialog', 'a')).not.toBe(liveInstance('dialog', 'b'))
+
+  // The Model closes b only. With no element shown, its exit completes at once.
+  sync('dialog', 'b', open('b', false))
+
+  expect(liveInstance('dialog', 'a')?.get()).toMatchObject({ open: true })
+  expect(liveInstance('dialog', 'b')?.get()).toMatchObject({ open: false, mounted: false })
+  expect(aChanges).toEqual([])
+  expect(bChanges.map((c) => c.snapshot['mounted'])).toEqual([false])
 })

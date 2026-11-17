@@ -269,6 +269,87 @@ Do not put `h.OnClick` on a slot to change the ui-sdk state. It does not reach c
 - **Mounts.** See Scene limitations.
 - **Binding.** `packages/ui/src/bind.test.ts` runs the bind phase in happy-dom: one change per click for a doubly attached element, entry reuse across `sync`, and the guard veto.
 
+## Scope
+
+`@foldlab/ui` serves a throwaway-app kit, not third parties. The `Binding` fields and the four Messages stay as they are and change only when a component needs it. Dialog was the first component to need a change (below).
+
+## Dialog
+
+Dialog is the component that stresses the two design choices that combobox and accordion never touched: one Mount per part, and a registry keyed by the Model. It was built through the adapter (`packages/ui/src/dialog.ts`) and compared with `@foldkit/ui`'s Dialog (0.170.0) on the same page. `@foldkit/ui` asks for `effect ~4.1.0`; the template pins 4.0.0. It ran, with a peer warning.
+
+### Mapping from `Binding` to a dialog
+
+| Binding field                         | Dialog                                                                                      |
+| ------------------------------------- | ------------------------------------------------------------------------------------------- |
+| `options`                             | `{ open }`                                                                                  |
+| `controlled`                          | `['open']`                                                                                  |
+| `callbacks`                           | `onOpenChange` to `open`                                                                    |
+| `completions` (new)                   | `onOpenChangeComplete` to `mounted`                                                         |
+| `fold`                                | `open` from the snapshot. `mounted` from the snapshot when present, else `mounted or open`. |
+| `renderState` (new, on the component) | `{ mounted, titled, described }` patched over a fresh instance in the render phase          |
+| `guard`, `foldkitEvents`              | not used. Escape, outside press and focus are core's.                                       |
+
+Two additions, 32 lines across `core.ts`, `internal/bind.ts` and `internal/render.ts`:
+
+- **`renderState`.** ui-sdk keeps `mounted` in the instance. It stays true while the exit animation runs, and `present` for the content and the backdrop reads it. A fresh render instance derives `mounted` from `open`, so a pure render drops the content the moment `open` turns false, and the exit animation never plays. The Model now carries `mounted`, and the render phase patches it in. The app decides which parts exist.
+- **`completions`.** `onOpenChangeComplete` is not a change request, so it bypasses the guard and sets a snapshot key. It clears `mounted` when the animation settles. `titled` and `described` follow the same pattern: ui-sdk learns them when title and description parts bind, and the Model says so up front.
+
+### Portals and the registry
+
+Nothing was portaled. ui-sdk core does not move DOM: `container` is a hint for adapters. The content renders inline as `position: fixed`, and core provides focus trap, inert outside and scroll lock itself. A portaled part would not need an escape from the registry either. The registry key comes from the Model (`dialog:settings`), not from DOM ancestry, so a part outside the root's subtree still finds its entry. That is the evidence for keying by Model and for one Mount per part. A root-scoped scan would have lost every portaled part. Moving a node out of Foldkit's tree with a Mount was not tried, and is not recommended: Foldkit's patch would no longer own that node.
+
+The nested confirm dialog sits inside the parent's content subtree and gets its own key, entry and instance.
+
+### Numbers
+
+|                          | Adapter (`@foldlab/ui`)                                   | `@foldkit/ui` Dialog                                                                              |
+| ------------------------ | --------------------------------------------------------- | ------------------------------------------------------------------------------------------------- |
+| Component code           | `dialog.ts`: 71 lines (58 without comments)               | none: it is the library                                                                           |
+| Consumer view            | 15 lines, including the nested confirm dialog             | 25 lines (`h.submodel` and `toView`)                                                              |
+| Consumer update glue     | 0: shares `GotUiMessage`                                  | 19 lines (`GotFkDialog`, open)                                                                    |
+| Model                    | `State`: 5 fields                                         | `Model`: id, isOpen, isAnimated, animation (4 fields), maybeFocusSelector                         |
+| Messages the app handles | the shared 4                                              | 10 plus 2 OutMessages                                                                             |
+| Mounts, closed           | 1 (trigger)                                               | 0                                                                                                 |
+| Mounts, open             | 6 (trigger, backdrop, content, title, description, close) | 1 (`AcquireResources`), plus an `OnUnmount` hook                                                  |
+| Library code behind it   | ui-sdk popup, modal, slots and dialog: about 2100 lines   | dialog 340 code lines, animation 134, Dom helpers about 1700 (all of them, not only the dialog's) |
+
+### Behavior, in a browser (Chrome, agent-browser)
+
+| Scenario                                          | Adapter                                                                                                                  | `@foldkit/ui`                    |
+| ------------------------------------------------- | ------------------------------------------------------------------------------------------------------------------------ | -------------------------------- |
+| Open                                              | focus to close, `html` overflow hidden, siblings inert                                                                   | same                             |
+| Escape                                            | exit animation plays (`data-closed`, opacity falls), content removed, lock and inert released, focus back on the trigger | same                             |
+| Tab, 5 presses                                    | stays in the content                                                                                                     | stays in the panel               |
+| Unmounted while closing                           | lock and inert released                                                                                                  | released                         |
+| Unmounted while open                              | lock and inert released                                                                                                  | released                         |
+| Reopened mid-animation                            | ends open, one lock, then closes cleanly                                                                                 | not tried                        |
+| Unmounted with the Model reset in the same update | released                                                                                                                 | **`html` overflow stays hidden** |
+| Two dialogs, one open and one closing (nested)    | independent: parent keeps `data-open` while the child is `data-closed`; the lock holds until the last one closes         | not applicable                   |
+
+The `@foldkit/ui` leak needs the Model to be replaced as the view unmounts. Its `Unmounted` handler releases the resources only when the Model is still open or animating, so release follows the Model. The adapter's release follows the DOM node through the registry, and does not care what the Model says. This is a real difference, but the case is narrow (a route change that swaps the whole Model). I reproduced it twice, and it did not reproduce once the demo left the Model alone.
+
+`bind.test.ts` asserts the registry side: two dialog entries, one open and one finishing its exit, share nothing. The completion reaches only the entry that finished.
+
+### Testing
+
+- **Focus trap, scroll lock, inert:** untestable in Scene or Story, for both providers. Scene renders vnodes, with no focus and no `html` style. The browser run above is the only evidence.
+- **Adapter, Scene:** every bound part is a pending Mount (`resolveBinds`, with the cast owned once). Scene can assert `role`, `aria-modal`, `aria-labelledby`, and the closing phase (`data-closed`, content still present).
+- **`@foldkit/ui`, Scene:** resolve one Mount, `Scene.Mount.resolve(AcquireResources, SucceededAcquireResources())`, with no cast, because the submodel boundary applies the lift.
+
+### Sharing one Panda theme
+
+`@foldkit/ui` does not write `data-slot`. Its parts arrive as attribute arrays through `toView`. `stamp(h, 'dialog-content')` (`packages/ui/src/stamp.ts`) returns our `data-slot` as a `ChildAttribute`, and the demo spreads it after each array. The theme in `preset.ts` keys on `dialog-backdrop` and `dialog-content`, and it styles `data-closed`, which both providers write for leave states. The two dialogs render identically. A kit can mix providers without forking the theme.
+
+One caveat: `@foldkit/ui` renders its closed dialog's children (`<dialog>` with the panel), so `[data-slot="dialog-content"]` also matches a closed `@foldkit/ui` panel. The adapter renders nothing when closed. Select by id in tests.
+
+### Mixing providers: where it breaks
+
+Both providers implement scroll lock, inert and focus themselves. With an `@foldkit/ui` dialog open and an adapter dialog opened over it, closing the `@foldkit/ui` one first cleared `html` overflow while the adapter dialog was still open. Focus then went to `body`. The two locks do not coordinate. Safe: both providers on one page, with modals that never stack across providers.
+
+### Recommendation
+
+Use the adapter for dialogs in this kit. The dialog needed 32 lines of adapter change, not per-element portal plumbing, and it duplicates no coordination of its own: core owns focus, inert and lock. Mix in `@foldkit/ui` only for components with no adapter yet, and do not stack a modal from one provider on a modal from the other. If the kit ever needs a stack across providers, one provider's lock has to become the owner.
+
 ## Bumping `@ui-sdk/core`
 
 `@ui-sdk/core/renderer` is not public API, so every bump is a review.

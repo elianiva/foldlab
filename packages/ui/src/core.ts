@@ -38,7 +38,7 @@ export type Message = typeof Message.Type
 
 // ── Component description ───────────────────────────────────────────────────
 
-export type Tag = 'div' | 'button' | 'input' | 'label' | 'span' | 'ul' | 'li' | 'p' | 'h3'
+export type Tag = 'div' | 'button' | 'input' | 'label' | 'span' | 'ul' | 'li' | 'p' | 'h2' | 'h3'
 
 export type Component<State, Slot extends string> = Readonly<{
   /** `data-slot` prefix and registry name. */
@@ -54,6 +54,10 @@ export type Component<State, Slot extends string> = Readonly<{
   controlled: ReadonlyArray<string>
   /** ui-sdk callback option to the controlled option it asks to change. */
   callbacks: Readonly<Record<string, string>>
+  /** Completion callbacks to the snapshot key they set (`onOpenChangeComplete: 'mounted'`). */
+  completions?: Readonly<Record<string, string>>
+  /** Internal ui-sdk state the Model owns, patched over a fresh instance in the render phase. */
+  renderState?: (state: State) => Readonly<Record<string, unknown>>
   /** Synchronous veto for policy the app knows at view time. Default: allow. */
   guard?: (state: State, snapshot: Snapshot) => boolean
   /** State after a snapshot of controlled options lands. Pure and idempotent. */
@@ -69,6 +73,9 @@ export type Component<State, Slot extends string> = Readonly<{
 
 const bindings = new Map<string, Binding>()
 
+/** The registered Binding for a component name. Tests attach through it. */
+export const bindingFor = (name: string) => bindings.get(name)
+
 export const defineComponent = <State, Slot extends string>(
   component: Component<State, Slot>,
 ): Component<State, Slot> => {
@@ -78,6 +85,7 @@ export const defineComponent = <State, Slot extends string>(
     options: (state) => component.options(decode(state)),
     controlled: component.controlled,
     callbacks: component.callbacks,
+    completions: component.completions ?? {},
     fold: (state, snapshot) => component.fold(decode(state), snapshot),
     guard: (state, snapshot) => component.guard?.(decode(state), snapshot) ?? true,
     foldkitEvents: component.text === undefined ? {} : { [component.text]: ['input'] },
@@ -221,7 +229,11 @@ export const makeParts =
     config: PartsConfig<AppMessage>,
   ): Parts<AppMessage, Slot> => {
     const key = component.key(state)
-    const rendered = renderPhase(component.primitive, { ...component.options(state), id: key })
+    const rendered = renderPhase(
+      component.primitive,
+      { ...component.options(state), id: key },
+      component.renderState?.(state),
+    )
     const part =
       (slot: Slot): Part<AppMessage> =>
       (props, attributes = [], children = []) => {
