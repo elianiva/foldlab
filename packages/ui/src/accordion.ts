@@ -35,6 +35,7 @@ export const component = defineComponent<State, Slot>({
   callbacks: { onValueChange: 'value' },
   fold: (state, snapshot) => ({ ...state, value: strings(snapshot['value']) }),
   tags: { root: 'div', item: 'div', header: 'h3', trigger: 'button', panel: 'div' },
+  keepMounted: ['panel'],
   bound: ['root', 'item', 'header', 'trigger', 'panel'],
 })
 

@@ -68,6 +68,10 @@ export type Component<State, Slot extends string> = Readonly<{
   controlled: ReadonlyArray<string>
   /** ui-sdk callback option to the controlled option it asks to change. */
   callbacks: Readonly<Record<string, string>>
+  /** Slots whose part stays in the page while closed, so CSS can animate the close. */
+  keepMounted?: ReadonlyArray<Slot>
+  /** Instance state keys the Model follows read-only (`moving`), folded like a snapshot. */
+  mirror?: ReadonlyArray<string>
   /** The slot whose bind takes the document scroll lock. Set it on a modal's content. */
   lockSlot?: Slot
   /** Completion callbacks to the snapshot key they set (`onOpenChangeComplete: 'mounted'`). */
@@ -99,6 +103,7 @@ export const bindingOf = <State, Slot extends string>(
     callbacks: component.callbacks,
     completions: component.completions ?? {},
     ...(component.lockSlot === undefined ? {} : { lockSlot: component.lockSlot }),
+    ...(component.mirror === undefined ? {} : { mirror: component.mirror }),
     fold: (state, snapshot) => component.fold(decode(state), snapshot),
     guard: (state, snapshot) => component.guard?.(decode(state), snapshot) ?? true,
     foldkitEvents: component.text === undefined ? {} : { [component.text]: ['input'] },
@@ -298,9 +303,21 @@ export const makeParts =
     )
     const part =
       (slot: Slot): Part<AppMessage> =>
-      (props, attributes = [], children = []) => {
+      (given, attributes = [], children = []) => {
+        const props = component.keepMounted?.includes(slot)
+          ? { keepMounted: true, ...given }
+          : given
         if (!rendered.present(slot, props)) return h.empty
-        const own = rendered.attrs(slot, props)
+        const shown = rendered.attrs(slot, props)
+        // `hidden` would make the closed panel `display: none` for good, and the preflight
+        // layer wins over any override, so a kept panel is marked closed instead and CSS hides it.
+        const own =
+          props['keepMounted'] === true && shown['hidden'] !== undefined
+            ? {
+                ...Object.fromEntries(Object.entries(shown).filter(([name]) => name !== 'hidden')),
+                'data-closed': '',
+              }
+            : shown
         const mount = component.bound.includes(slot)
           ? [
               h.OnMount(

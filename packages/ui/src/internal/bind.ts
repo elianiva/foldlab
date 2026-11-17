@@ -32,6 +32,8 @@ export type Binding = Readonly<{
   guard: (state: unknown, snapshot: Snapshot) => boolean
   /** The slot whose bind takes the document scroll lock (a modal's content). */
   lockSlot?: string
+  /** Instance state keys, not controlled, that the Model follows read-only, like a drag draft. */
+  mirror?: ReadonlyArray<string>
   /** DOM events Foldkit owns on a slot, so core does not attach them. */
   foldkitEvents: Readonly<Record<string, ReadonlyArray<string>>>
 }>
@@ -44,6 +46,8 @@ type Entry = {
   /** What the instance currently believes: the Model's state, plus changes it acked itself. */
   state: unknown
   leases: number
+  /** Stops the mirror subscription. */
+  stop?: () => void
   /** One binding per element. Attaching the same element again replaces the old one. */
   readonly bound: WeakMap<Element, () => void>
 }
@@ -164,6 +168,23 @@ export const attach = (
       bound: new WeakMap(),
     }
     created.instance = binding.primitive(optionsOf(created))
+    const mirror = binding.mirror ?? []
+    if (mirror.length > 0) {
+      const read = () => {
+        const current = created.instance.get() as Record<string, unknown>
+        return Object.fromEntries(mirror.map((name) => [name, current[name] ?? null]))
+      }
+      let last = JSON.stringify(read())
+      created.stop = created.instance.subscribe(() => {
+        const snapshot = read()
+        const text = JSON.stringify(snapshot)
+        if (text === last) return
+        last = text
+        created.state = binding.fold(created.state, snapshot)
+        const [sink] = created.sinks
+        sink?.({ snapshot, reason: 'mirror', refused: false })
+      })
+    }
     registry.entries.set(id, created)
     entry = created
   }
@@ -190,6 +211,7 @@ export const attach = (
     if (held.bound.get(element) === release) held.bound.delete(element)
     held.sinks.delete(sink)
     if (--held.leases === 0) {
+      held.stop?.()
       held.instance.destroy()
       if (registry.entries.get(id) === held) registry.entries.delete(id)
     }

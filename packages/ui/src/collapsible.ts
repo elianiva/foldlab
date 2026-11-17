@@ -23,6 +23,7 @@ export const component = defineComponent<State, Slot>({
   callbacks: { onOpenChange: 'open' },
   fold: (state, snapshot) => ({ ...state, open: snapshot['open'] === true }),
   tags: { root: 'div', trigger: 'button', panel: 'div' },
+  keepMounted: ['panel'],
   bound: ['root', 'trigger', 'panel'],
 })
 
