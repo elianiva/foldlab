@@ -8,7 +8,9 @@ import { attrs, present } from '@ui-sdk/core/renderer'
 export type Primitive = (options: Record<string, unknown>) => PrimitiveInstance
 
 /** The one place a typed primitive is widened. Its option types are checked in each component's `options`. */
-export const primitiveOf = (primitive: (options: never) => PrimitiveInstance): Primitive =>
+// Returns `unknown` on purpose: some primitives (tooltip, popover) carry slot types that
+// `PrimitiveInstance` rejects under `exactOptionalPropertyTypes`. See docs/upstream-notes.md.
+export const primitiveOf = (primitive: (options: never) => unknown): Primitive =>
   primitive as Primitive
 
 export type PartProps = Readonly<Record<string, unknown>>

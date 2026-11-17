@@ -404,6 +404,64 @@ export const foldlab = definePreset({
       outlineOffset: '2px',
     },
 
+    // ── Popups ──
+    '[data-slot="tooltip-content"]': {
+      zIndex: 20,
+      padding: '0.3rem 0.6rem',
+      borderRadius: '6px',
+      background: '#1f232b',
+      color: '#fff',
+      fontSize: '0.8rem',
+      pointerEvents: 'none',
+    },
+    '[data-slot="popover-content"], [data-slot="menu-content"], [data-slot="select-content"]': {
+      zIndex: 20,
+      border: '1px solid var(--fl-border)',
+      borderRadius: '10px',
+      background: 'var(--fl-surface)',
+      boxShadow: '0 12px 32px rgb(23 26 33 / 0.16)',
+    },
+    '[data-slot="popover-content"]': {
+      display: 'flex',
+      flexDirection: 'column',
+      gap: '0.5rem',
+      width: '18rem',
+      padding: '1rem',
+    },
+    '[data-slot="popover-title"]': { margin: 0, fontSize: '1rem', fontWeight: 600 },
+    '[data-slot="popover-description"]': {
+      margin: 0,
+      color: 'var(--fl-muted)',
+      fontSize: '0.9rem',
+    },
+    '[data-slot="menu-content"], [data-slot="select-content"]': {
+      minWidth: '11rem',
+      padding: '0.3rem',
+    },
+    '[data-slot="menu-item"], [data-slot="select-item"]': {
+      padding: '0.4rem 0.65rem',
+      borderRadius: '6px',
+      cursor: 'pointer',
+    },
+    '[data-slot="menu-item"][data-highlighted], [data-slot="select-item"][data-highlighted]': {
+      background: 'var(--fl-accent-soft)',
+    },
+    '[data-slot="select-item"][data-selected]': { fontWeight: 600, color: 'var(--fl-accent)' },
+    '[data-slot="select-trigger"]': {
+      display: 'inline-flex',
+      minWidth: '12rem',
+      justifyContent: 'space-between',
+    },
+    '[data-slot="select"]': { position: 'relative', display: 'inline-block' },
+    '[data-slot="tooltip-content"][data-closed], [data-slot="popover-content"][data-closed], [data-slot="menu-content"][data-closed], [data-slot="select-content"][data-closed]':
+      {
+        opacity: 0,
+      },
+    '[data-slot="tooltip-content"], [data-slot="popover-content"], [data-slot="menu-content"], [data-slot="select-content"]':
+      {
+        transition: 'opacity 120ms',
+      },
+
     // Field
     '[data-slot="field"]': { display: 'flex', flexDirection: 'column', gap: '0.35rem' },
     '[data-slot="field-label"], [data-slot="combobox-label"]': {
