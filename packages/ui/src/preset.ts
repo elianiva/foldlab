@@ -669,6 +669,71 @@ const base = {
 // Depth recipes. Merged over the flat rules by selector: an object literal with a repeated
 // key keeps only the last one, which would drop the earlier properties.
 const depth = {
+  '[data-slot="autocomplete-content"]': {
+    zIndex: 20,
+    padding: '0.3rem',
+    borderRadius: '10px',
+    background: 'var(--card)',
+    boxShadow: 'var(--elev-float)',
+    minWidth: '14rem',
+  },
+  '[data-slot="autocomplete-item"], [data-slot="command-item"]': {
+    padding: '0.4rem 0.65rem',
+    borderRadius: '6px',
+    cursor: 'pointer',
+  },
+  '[data-slot="autocomplete-item"][data-highlighted], [data-slot="command-item"][data-highlighted]':
+    { background: 'var(--accent)' },
+  '[data-slot="autocomplete-empty"], [data-slot="command-empty"]': {
+    padding: '0.5rem 0.65rem',
+    color: 'var(--muted-foreground)',
+  },
+  '[data-slot="command"]': {
+    display: 'flex',
+    flexDirection: 'column',
+    gap: '0.5rem',
+    width: '100%',
+    maxWidth: '26rem',
+    padding: '0.6rem',
+    borderRadius: '12px',
+    background: 'var(--card)',
+    boxShadow: 'var(--elev-float)',
+  },
+  '[data-slot="calendar"]': {
+    display: 'flex',
+    flexDirection: 'column',
+    gap: '0.5rem',
+    width: '17rem',
+  },
+  '[data-slot="calendar"] > div:first-child': {
+    display: 'flex',
+    alignItems: 'center',
+    justifyContent: 'space-between',
+  },
+  '[data-slot="calendar-heading"]': { fontWeight: 600 },
+  '[data-slot="calendar-weekdays"], [data-slot="calendar-week"]': {
+    display: 'grid',
+    gridTemplateColumns: 'repeat(7, 1fr)',
+    gap: '2px',
+  },
+  '[data-slot="calendar-weekday"]': {
+    textAlign: 'center',
+    color: 'var(--muted-foreground)',
+    fontSize: '0.75rem',
+  },
+  '[data-slot="calendar-day"]': {
+    padding: '0.4rem 0',
+    textAlign: 'center',
+    background: 'transparent',
+    boxShadow: 'none',
+    borderRadius: '6px',
+  },
+  '[data-slot="calendar-day"][data-outside]': { color: 'var(--muted-foreground)', opacity: 0.55 },
+  '[data-slot="calendar-day"][data-today]': { fontWeight: 700 },
+  '[data-slot="calendar-day"][data-selected]': {
+    background: 'linear-gradient(var(--primary-fill-top), var(--primary-fill-bottom))',
+    color: 'var(--primary-foreground)',
+  },
   '[data-slot="toc"]': {
     display: 'flex',
     flexDirection: 'column',

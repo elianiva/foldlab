@@ -5,9 +5,12 @@ import type { Document, Html, HtmlBuilder } from 'foldkit/html'
 import { defineMessageUnion } from 'foldkit/message'
 import {
   Accordion,
+  Autocomplete,
+  Calendar,
   Checkbox,
   Collapsible,
   Combobox,
+  Command as UiCommand,
   Dialog,
   Field,
   Menu,
@@ -49,6 +52,9 @@ export const kit = Ui.define({
   pop: Popover.component,
   menu: Menu.component,
   region: Select.component,
+  auto: Autocomplete.component,
+  palette: UiCommand.component,
+  cal: Calendar.component,
 })
 
 // ── Model ───────────────────────────────────────────────────────────────────
@@ -199,6 +205,20 @@ export const init = (flags: Flags) => ({
       tip: Tooltip.init({ key: 'tip' }),
       pop: Popover.init({ key: 'pop' }),
       menu: Menu.init({ key: 'menu' }),
+      auto: Autocomplete.init({
+        key: 'auto',
+        items: ['Foldkit', 'React', 'Svelte', 'Solid', 'Vue'],
+      }),
+      palette: UiCommand.init({
+        key: 'palette',
+        items: [
+          { value: 'deploy', label: 'Deploy worker' },
+          { value: 'logs', label: 'Open logs' },
+          { value: 'rollback', label: 'Roll back' },
+          { value: 'settings', label: 'Settings' },
+        ],
+      }),
+      cal: Calendar.init({ key: 'cal', month: '2026-11' }),
       region: Select.init({
         key: 'region',
         items: [

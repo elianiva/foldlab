@@ -1,6 +1,14 @@
 // More pages: static elements, and the adapter components that already existed
 // (accordion, combobox, dialog), laid out as gallery pages.
-import { Accordion, Combobox, Dialog, Elements as E } from '@foldlab/ui'
+import {
+  Accordion,
+  Autocomplete,
+  Calendar,
+  Combobox,
+  Command,
+  Dialog,
+  Elements as E,
+} from '@foldlab/ui'
 import type { Html } from 'foldkit/html'
 import { Message } from '../app/main.ts'
 import { sectionOf, stacked } from './layout.ts'
@@ -136,7 +144,166 @@ const copyPage =
     ]
   }
 
+const autocompletePage = ({ h, model, ui }: Ctx): ReadonlyArray<Html> => {
+  const a = Autocomplete.parts(model.ui.auto, h, ui)
+  const visible = Autocomplete.visibleItems(model.ui.auto)
+  return [
+    sectionOf(
+      h,
+      'Free text with suggestions',
+      [
+        h.div(
+          [],
+          [
+            a.label({}, [], ['Framework']),
+            a.input({}, [h.Placeholder('Type to search')], []),
+            a.content(
+              {},
+              [],
+              [
+                a.list(
+                  {},
+                  [],
+                  visible.length === 0
+                    ? [a.empty({}, [], ['No suggestions'])]
+                    : visible.map((item) =>
+                        a.item(
+                          { value: item, label: item },
+                          [],
+                          [a['item-text']({ text: item }, [], [item])],
+                        ),
+                      ),
+                ),
+              ],
+            ),
+          ],
+        ),
+      ],
+      'a.input({}, [], []), a.content({}, [], [a.list({}, [], Autocomplete.visibleItems(state).map(...))])',
+      stacked,
+    ),
+  ]
+}
+
+const commandPage = ({ h, model, ui }: Ctx): ReadonlyArray<Html> => {
+  const c = Command.parts(model.ui.palette, h, ui)
+  const visible = Command.visibleItems(model.ui.palette)
+  return [
+    sectionOf(
+      h,
+      'Palette',
+      [
+        c.root(
+          {},
+          [],
+          [
+            c.input({}, [h.Placeholder('Type a command')], []),
+            c.list(
+              {},
+              [],
+              visible.length === 0
+                ? [c.empty({}, [], ['No results'])]
+                : visible.map((item) =>
+                    c.item(
+                      { value: item.value, label: item.label },
+                      [],
+                      [c['item-text']({ text: item.label }, [], [item.label])],
+                    ),
+                  ),
+            ),
+          ],
+        ),
+      ],
+      'c.root({}, [], [c.input({}, [], []), c.list({}, [], Command.visibleItems(state).map(...))])',
+      stacked,
+    ),
+  ]
+}
+
+const monthNames = [
+  'January',
+  'February',
+  'March',
+  'April',
+  'May',
+  'June',
+  'July',
+  'August',
+  'September',
+  'October',
+  'November',
+  'December',
+]
+const weekdayNames = ['Su', 'Mo', 'Tu', 'We', 'Th', 'Fr', 'Sa']
+
+const calendarPage = ({ h, model, ui }: Ctx): ReadonlyArray<Html> => {
+  const state = model.ui.cal
+  const c = Calendar.parts(state, h, ui)
+  const [year, month] = state.month.split('-').map(Number) as [number, number]
+  return [
+    sectionOf(
+      h,
+      'Single date',
+      [
+        c.root(
+          {},
+          [],
+          [
+            h.div(
+              [],
+              [
+                c.previous({}, [], ['\u2039']),
+                c.heading({}, [], [`${monthNames[month - 1]} ${year}`]),
+                c.next({}, [], ['\u203a']),
+              ],
+            ),
+            c.grid(
+              {},
+              [],
+              [
+                c.weekdays(
+                  {},
+                  [],
+                  weekdayNames.map((name, index) => c.weekday({ index }, [], [name])),
+                ),
+                ...Calendar.weeksOf(state.month).map((week, index) =>
+                  c.week(
+                    { index },
+                    [],
+                    week.map((date) => c.day({ value: date }, [], [String(Number(date.slice(8)))])),
+                  ),
+                ),
+              ],
+            ),
+          ],
+        ),
+        h.p([], [`Selected: ${state.value || 'none'}`]),
+      ],
+      'c.grid({}, [], [c.weekdays(...), ...Calendar.weeksOf(month).map(w => c.week({ index }, [], w.map(d => c.day({ value: d }, [], [...]))))])',
+      stacked,
+    ),
+  ]
+}
+
 export const morePages: ReadonlyArray<Page> = [
+  {
+    id: 'autocomplete',
+    title: 'Autocomplete',
+    description: 'A text input that suggests values.',
+    render: autocompletePage,
+  },
+  {
+    id: 'command-palette',
+    title: 'Command Palette',
+    description: 'Search and run commands from the keyboard.',
+    render: commandPage,
+  },
+  {
+    id: 'date-picker',
+    title: 'Date Picker',
+    description: 'A month grid. Arrow keys move by day, Page Up and Down by month.',
+    render: calendarPage,
+  },
   {
     id: 'clipboard-text',
     title: 'Clipboard Text',
