@@ -8,7 +8,8 @@ import type { PartProps, Primitive } from './render.ts'
 
 /** The controlled options of one instance, by ui-sdk option name. */
 export type Snapshot = Readonly<Record<string, unknown>>
-export type Change = Readonly<{ snapshot: Snapshot; reason: string }>
+/** `refused` changes were vetoed by the guard: the instance did not move. */
+export type Change = Readonly<{ snapshot: Snapshot; reason: string; refused: boolean }>
 
 export type Binding = Readonly<{
   primitive: Primitive
@@ -20,6 +21,11 @@ export type Binding = Readonly<{
   callbacks: Readonly<Record<string, string>>
   /** State after a snapshot lands. Pure and idempotent. */
   fold: (state: unknown, snapshot: Snapshot) => unknown
+  /**
+   * Synchronous veto, pure. Gets the state the instance holds and the snapshot
+   * it asked for. False means: do not ack, do not call setOptions.
+   */
+  guard: (state: unknown, snapshot: Snapshot) => boolean
   /** DOM events Foldkit owns on a slot, so core does not attach them. */
   foldkitEvents: Readonly<Record<string, ReadonlyArray<string>>>
 }>
@@ -32,6 +38,8 @@ type Entry = {
   /** What the instance currently believes: the Model's state, plus changes it acked itself. */
   state: unknown
   leases: number
+  /** One binding per element. Attaching the same element again replaces the old one. */
+  readonly bound: WeakMap<Element, () => void>
 }
 
 const registry = new Map<string, Entry>()
@@ -47,11 +55,17 @@ const optionsOf = (entry: Entry) => {
   // Ack first, then tell the app: a second interaction in the same tick reads
   // the acked value, and the Message carries everything `update` needs.
   const callback = (option: string) => (value: unknown, details?: { reason?: string }) => {
+    const reason = details?.reason ?? 'unknown'
     const next = { ...snapshotOf(binding, entry.state), [option]: value }
+    const [sink] = entry.sinks
+    if (!binding.guard(entry.state, next)) {
+      // Not acking is the veto: core keeps the old option, so nothing moves.
+      sink?.({ snapshot: next, reason, refused: true })
+      return
+    }
     entry.state = binding.fold(entry.state, next)
     entry.instance.setOptions(optionsOf(entry))
-    const [sink] = entry.sinks
-    sink?.({ snapshot: snapshotOf(binding, entry.state), reason: details?.reason ?? 'unknown' })
+    sink?.({ snapshot: snapshotOf(binding, entry.state), reason, refused: false })
   }
   const callbacks = Object.fromEntries(
     Object.entries(binding.callbacks).map(([name, option]) => [name, callback(option)]),
@@ -80,6 +94,7 @@ export const attach = (
       sinks: new Set(),
       state,
       leases: 0,
+      bound: new WeakMap(),
     }
     created.instance = binding.primitive(optionsOf(created))
     registry.set(id, created)
@@ -88,21 +103,42 @@ export const attach = (
   const held = entry
   held.leases++
   held.sinks.add(sink)
+  // Lease first, so replacing a binding never takes the count to zero.
+  held.bound.get(element)?.()
   const events = binding.foldkitEvents[slot]
   const unbind = bind(
     held.instance.part(slot, props),
     element,
     events === undefined ? undefined : { by: 'framework', attaches: events },
   )
-  return () => {
+  let released = false
+  const release = () => {
+    if (released) return
+    released = true
     unbind()
+    if (held.bound.get(element) === release) held.bound.delete(element)
     held.sinks.delete(sink)
     if (--held.leases === 0) {
       held.instance.destroy()
-      registry.delete(id)
+      if (registry.get(id) === held) registry.delete(id)
     }
   }
+  held.bound.set(element, release)
+  return release
 }
+
+/** The live instance for a key, if any part of it is mounted. */
+export const liveInstance = (component: string, key: string) =>
+  registry.get(registryKey(component, key))?.instance
+
+/** Destroys every instance. Runs on HMR dispose, and between tests. */
+export const destroyAll = () => {
+  for (const entry of registry.values()) entry.instance.destroy()
+  registry.clear()
+}
+
+const hot = (import.meta as { hot?: { dispose: (callback: () => void) => void } }).hot
+hot?.dispose(destroyAll)
 
 /** Model to instance. Confirms what the instance acked, or reverts it when `update` refused. */
 export const sync = (component: string, key: string, state: unknown) => {

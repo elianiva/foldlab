@@ -211,12 +211,41 @@ Foldkit's `h.OnClick`, `h.OnInput` and `h.OnKeyDown` are a different path: Foldk
 
 Do not put `h.OnClick` on a slot to change the ui-sdk state. It does not reach core. Do not put `h.OnKeyDown` on a combobox input either; core's keyboard handling lives there. Put Foldkit events on elements ui-sdk does not own, or on slots with no core handler, such as the Field control's `OnInput` in the demo.
 
-### What the adapter has
+### The settled API
 
-- **Render phase**, `internal/render.ts`. Builds a throwaway instance from options, reads state once, calls `attrs` and `present` from the renderer entry, and discards it. No `window`, no DOM, no counter.
-- **Bind phase**, `internal/bind.ts`. A registry outside the Model, keyed by `component:key`. The first part to mount creates the instance. The last one to unmount destroys it.
-- **`Mount`**, `BindUiPart`. One per part that needs a live element. Its lifetime follows the DOM node, and its stream carries `ChangedUiState` Messages out.
-- **`syncUiState`**. Pushes the Model's state into mounted instances with `setOptions`.
+**Binding** (`internal/bind.ts`) is the contract between a component and the registry:
+
+| Field                    | Purpose                                                                                    |
+| ------------------------ | ------------------------------------------------------------------------------------------ |
+| `primitive`              | The ui-sdk primitive, seen as options in, instance out.                                    |
+| `options(state)`         | Model state to ui-sdk options. Pure.                                                       |
+| `controlled`             | Option names the Model controls. A snapshot holds exactly these.                           |
+| `callbacks`              | ui-sdk callback option to the controlled option it changes.                                |
+| `fold(state, snapshot)`  | State after a snapshot lands. Pure and idempotent.                                         |
+| `guard(state, snapshot)` | Synchronous veto. False means no ack. Default: allow.                                      |
+| `foldkitEvents`          | Events Foldkit owns on a slot (`input` on the combobox input). Core attaches none of them. |
+
+**Messages** (`core.ts`):
+
+- `ChangedUiState { component, key, snapshot, reason }`: the instance acked a change. `snapshot` holds every controlled option, so applying it twice equals applying it once. `reason` is for policy, never for rebuilding state.
+- `RefusedUiChange { component, key, snapshot, reason }`: the guard vetoed the change. `snapshot` is what was asked for. `update` normally ignores it.
+- `TypedUiText { component, key, value }`: text typed into a Foldkit-owned input.
+- `CompletedUiSync`: the `SyncUiState` Command finished. `update` ignores it.
+
+**Two tiers of refusal.**
+
+1. _Synchronous guard._ Policy the app knows at view time (max selections, a locked row, a value out of range) goes in `guard`. The callback computes the next snapshot and asks the guard. On false it does not change its state and does not call `setOptions`, and it emits `RefusedUiChange`. Not acking is the veto: for a controlled key core keeps the old option value, so nothing moves and no round trip happens.
+2. _Asynchronous revert._ Policy only the server can answer is applied optimistically. `update` ignores or rewrites the change, and the `SyncUiState` Command pushes the Model's state back into the instance. There is a brief window where the instance holds the acked value.
+
+**Attachment is idempotent.** An entry keeps one binding per element. Attaching the same element again unbinds the old one first, so a reused node never produces two changes per interaction. HMR dispose destroys every registry entry (`destroyAll`).
+
+**One Mount per part.** Part props (`value` on an option, `key` on a star) come from the render call, not the DOM. A root-scoped scan could not rebuild `part(slot, props)` without re-serializing props into data attributes and keeping them in sync. Portaled parts leave the root's subtree and need their own Mount anyway.
+
+**Phases.**
+
+- _Render_, `internal/render.ts`: throwaway instance from options, reads state once, calls `attrs` and `present`, discards it. No `window`, no DOM, no counter.
+- _Bind_, `internal/bind.ts`: registry outside the Model keyed by `component:key`. The first part to mount creates the instance. The last one to unmount destroys it.
+- _`SyncUiState` Command_: `update` returns it after every ui Message.
 
 ### Where ui-sdk's shape was worth keeping
 
@@ -226,23 +255,19 @@ Do not put `h.OnClick` on a slot to change the ui-sdk state. It does not reach c
 - **Reasons.** `details.reason` becomes `Message.reason`, so `update` can tell `item-press` from `escape-key`.
 - **Field wiring.** `Field.parts(...).attributes('control', {}, ['aria-describedby', 'aria-invalid'])` lets a combobox input take the Field's description and error ids without a second component.
 
-## Decisions and open problems
+## Scene limitations
 
-1. **Acks happen in bind.** On a controlled key, core's `createChange` calls the callback and waits for the value to return through `sync`. The bind callback writes the accepted value into the instance first (`setOptions`), then emits `ChangedUiState` with the full controlled snapshot. A second interaction in the same tick reads the acked value. Messages are idempotent and order-independent. `reason` is for policy, never for rebuilding state.
-2. **`SyncUiState` is a Command, not a Subscription.** `update` returns it after every ui Message. It confirms the ack, or reverts the instance when `update` ignored the change.
-3. **Text entry is Foldkit's.** The `text` slot (the combobox input) gets `h.Value` and `h.OnInput` and a `TypedUiText` Message. Bind passes `{ by: 'framework', attaches: ['input'] }` so core attaches no `input` handler there. Core keeps keys, ARIA and focus on that element.
-4. **One Mount per part, kept.** Part props come from the render call, not the DOM, so a root-scoped scan cannot rebuild `part(slot, props)`. Test noise is handled in `@foldlab/ui/testing`: `resolveBinds(lift)` resolves every pending `BindUiPart` and owns the one cast.
-5. **Scene has no `input` step.** Typing a value is still not drivable, although the input now has an `OnInput` handler a Scene can assert (`toHaveHandler('input')`).
-6. **Unstable `renderer` accepted**, pinned and isolated. `renderer-contract.test.ts` fails on a break.
-7. **ui-sdk sends "reset" as a controlled `query` of `undefined`.** `Combobox` folds it to the chosen label in single mode.
-8. **`@ui-sdk/core` types vs `exactOptionalPropertyTypes`.** `primitiveOf` widens each primitive in one place.
-9. **Not fixed: a stale ack.** If `update` refuses a change, the instance holds the acked value until the Command lands. One Command round trip.
+- **`resolveBinds`.** Every bound part is one pending Mount, and Scene demands each be resolved. `@foldlab/ui/testing` exports `resolveBinds(lift)`. It resolves every `BindUiPart` with `CompletedUiSync` and owns the cast: a Mount resolver is typed with the child Message, and Scene feeds `update` the raw result without the view's `Mount.mapMessage`, so you pass the same lift the view uses.
+- **No `input` step.** Scene has `change`, not `input`. A typed value cannot be driven. Scene can assert the handler (`toHaveHandler('input')`), and Stories cover `TypedUiText` through `update`.
+- **`query` reset on close.** ui-sdk reports a closed single combobox as a controlled `query` of `undefined`. `Combobox.fold` reads it as "show the chosen label". Tests need to build that snapshot by hand.
+- **`@ui-sdk/core` types vs `exactOptionalPropertyTypes`.** `primitiveOf` widens each primitive in one place.
 
 ## What it makes hard to test
 
 - **Behavior.** Stories (`update` only) cover the Message flow and validation fully, with no DOM. Real keyboard and focus behavior only exists after `bind`, so only a browser run covers it. I ran that by hand with `agent-browser`: accordion toggle, name check, combobox filter and select, multi-select.
 - **View.** Scenes can check attributes, ARIA wiring and structure from the render phase. That is the payoff of the pure phase.
-- **Mounts.** See items 4 and 5 above.
+- **Mounts.** See Scene limitations.
+- **Binding.** `packages/ui/src/bind.test.ts` runs the bind phase in happy-dom: one change per click for a doubly attached element, entry reuse across `sync`, and the guard veto.
 
 ## Bumping `@ui-sdk/core`
 
@@ -264,4 +289,4 @@ Do not put `h.OnClick` on a slot to change the ui-sdk state. It does not reach c
 | 50   | 100                  | 3.7 ms       | 4.0 ms               |
 | 200  | 400                  | 15.8 ms      | 6.6 ms               |
 
-At 50 rows the render phase costs about 4 ms of an 8 ms Foldkit budget. Not worth a cache yet. If it grows, cache `renderPhase` by component, key and the controlled-state snapshot. The demo's 13 ms slow patch on first render was mostly Foldkit mounting, not the render phase.
+Baseline to beat: 50 rows, 100 mounts, 4.0 ms re-render. This page is nothing but comboboxes; a real page has one. The numbers do not separate instances built per view from parts patched per view, so the cause is open. A `renderPhase` cache keyed by component, key and controlled snapshot is the next step only if a real page regresses this.

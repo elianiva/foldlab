@@ -22,6 +22,16 @@ export const Message = defineMessageUnion({
   },
   /** Text typed into an input Foldkit owns. Core never sees it. */
   TypedUiText: { component: Schema.String, key: Schema.String, value: Schema.String },
+  /**
+   * The synchronous guard vetoed a change. The instance did not move. `update`
+   * normally ignores it; log it, or show why. `snapshot` is what was asked for.
+   */
+  RefusedUiChange: {
+    component: Schema.String,
+    key: Schema.String,
+    snapshot: Schema.Record(Schema.String, Schema.Unknown),
+    reason: Schema.String,
+  },
   CompletedUiSync: {},
 })
 export type Message = typeof Message.Type
@@ -44,6 +54,8 @@ export type Component<State, Slot extends string> = Readonly<{
   controlled: ReadonlyArray<string>
   /** ui-sdk callback option to the controlled option it asks to change. */
   callbacks: Readonly<Record<string, string>>
+  /** Synchronous veto for policy the app knows at view time. Default: allow. */
+  guard?: (state: State, snapshot: Snapshot) => boolean
   /** State after a snapshot of controlled options lands. Pure and idempotent. */
   fold: (state: State, snapshot: Snapshot) => State
   /** State after text is typed into the `text` slot. */
@@ -67,6 +79,7 @@ export const defineComponent = <State, Slot extends string>(
     controlled: component.controlled,
     callbacks: component.callbacks,
     fold: (state, snapshot) => component.fold(decode(state), snapshot),
+    guard: (state, snapshot) => component.guard?.(decode(state), snapshot) ?? true,
     foldkitEvents: component.text === undefined ? {} : { [component.text]: ['input'] },
   })
   return component
@@ -80,7 +93,7 @@ export const defineComponent = <State, Slot extends string>(
 export const makeUpdate =
   <State, Slot extends string>(component: Component<State, Slot>) =>
   (state: State, message: Message): State => {
-    if (message._tag === 'CompletedUiSync') return state
+    if (message._tag === 'CompletedUiSync' || message._tag === 'RefusedUiChange') return state
     if (message.component !== component.name || message.key !== component.key(state)) return state
     if (message._tag === 'TypedUiText') return component.typed?.(state, message.value) ?? state
     return component.fold(state, message.snapshot)
@@ -109,7 +122,22 @@ export const BindPart = Mount.defineStream('BindUiPart', {
         yield* Effect.acquireRelease(
           Effect.sync(() =>
             attach(component, binding, key, state, slot, props, element, (change: Change) => {
-              Queue.offerUnsafe(queue, Message.ChangedUiState({ component, key, ...change }))
+              Queue.offerUnsafe(
+                queue,
+                change.refused
+                  ? Message.RefusedUiChange({
+                      component,
+                      key,
+                      snapshot: change.snapshot,
+                      reason: change.reason,
+                    })
+                  : Message.ChangedUiState({
+                      component,
+                      key,
+                      snapshot: change.snapshot,
+                      reason: change.reason,
+                    }),
+              )
             }),
           ),
           (release) => Effect.sync(release),
