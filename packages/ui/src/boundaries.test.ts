@@ -28,3 +28,24 @@ test('no kit source imports @foldkit/ui', () => {
 test('the peer surface is foldkit and effect', () => {
   expect(Object.keys(manifest['peerDependencies'] ?? {}).toSorted()).toEqual(['effect', 'foldkit'])
 })
+
+// The registry and the lock state belong to a `Registry` value that the app
+// provides as a Resource. A module-level mutable binding would bring back the
+// global that tests had to reset.
+test('no kit source holds module-level mutable state', () => {
+  const sources = readdirSync(here, { recursive: true, encoding: 'utf8' }).filter(
+    (file) => file.endsWith('.ts') && !file.endsWith('.test.ts'),
+  )
+  const offenders = sources.flatMap((file) =>
+    readFileSync(join(here, file), 'utf8')
+      .split('\n')
+      .filter(
+        (line) =>
+          /^(export )?(let|var) /.test(line) ||
+          /^(export )?const \w+(: [^=]+)? = new (Map|Set|WeakMap|WeakSet)\b/.test(line) ||
+          /import\.meta(\s+as [^)]+)?\)?\.hot|import\.meta\.hot/.test(line),
+      )
+      .map((line) => `${file}: ${line}`),
+  )
+  expect(offenders).toEqual([])
+})

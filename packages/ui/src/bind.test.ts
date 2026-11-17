@@ -1,14 +1,15 @@
 // @vitest-environment happy-dom
 import { accordion } from '@ui-sdk/core/accordion'
-import { afterEach, expect, test, vi } from 'vitest'
+import { afterEach, beforeEach, expect, test, vi } from 'vitest'
 import {
   attach,
   type Binding,
   type Change,
-  destroyAll,
+  closeRegistry,
+  makeRegistry,
+  type Registry,
   liveInstance,
   LOCK_MARKER,
-  resetLockWarning,
   sync,
 } from './internal/bind.ts'
 import { primitiveOf } from './internal/render.ts'
@@ -34,10 +35,16 @@ const trigger = () => {
   return el
 }
 const mount = (binding: Binding, el: HTMLElement, changes: Array<Change>, s: unknown = state) =>
-  attach('accordion', binding, 'k', s, 'trigger', { value: 'a' }, el, (c) => changes.push(c))
+  attach(registry, 'accordion', binding, 'k', s, 'trigger', { value: 'a' }, el, (c) =>
+    changes.push(c),
+  )
 
+let registry: Registry
+beforeEach(() => {
+  registry = makeRegistry(new Map())
+})
 afterEach(() => {
-  destroyAll()
+  closeRegistry(registry)
   document.body.replaceChildren()
 })
 
@@ -62,16 +69,16 @@ test('cleanup of a replaced binding does not tear down the live one', () => {
   el.click()
   expect(changes).toHaveLength(1)
   second()
-  expect(liveInstance('accordion', 'k')).toBeUndefined()
+  expect(liveInstance(registry, 'accordion', 'k')).toBeUndefined()
 })
 
 test('sync reuses the entry instead of rebuilding it', () => {
   const el = trigger()
   const changes: Array<Change> = []
   mount(make(), el, changes)
-  const before = liveInstance('accordion', 'k')
-  sync('accordion', 'k', { key: 'k', value: ['a'] })
-  expect(liveInstance('accordion', 'k')).toBe(before)
+  const before = liveInstance(registry, 'accordion', 'k')
+  sync(registry, 'accordion', 'k', { key: 'k', value: ['a'] })
+  expect(liveInstance(registry, 'accordion', 'k')).toBe(before)
   expect(before?.get()).toMatchObject({ value: ['a'] })
   el.click()
   expect(changes[0]?.snapshot).toEqual({ value: [] })
@@ -87,7 +94,7 @@ test('a guard veto does not move the instance and emits a refused change', () =>
   )
   el.click()
   expect(changes).toEqual([{ snapshot: { value: ['a'] }, reason: 'trigger-press', refused: true }])
-  expect(liveInstance('accordion', 'k')?.get()).toMatchObject({ value: [] })
+  expect(liveInstance(registry, 'accordion', 'k')?.get()).toMatchObject({ value: [] })
   el.click()
   expect(changes).toHaveLength(2)
   expect(changes[1]?.snapshot).toEqual({ value: ['a'] })
@@ -95,23 +102,29 @@ test('a guard veto does not move the instance and emits a refused change', () =>
 
 test('two dialogs keep independent state: one open, one finishing its exit', async () => {
   const { Dialog } = await import('./index.ts')
-  const { bindingFor } = await import('./core.ts')
-  const binding = bindingFor('dialog')
-  if (binding === undefined) throw new Error('dialog is not registered')
+  const { bindingOf } = await import('./core.ts')
+  const binding = bindingOf(Dialog.component)
   const open = (key: string, isOpen: boolean) => Dialog.init({ key, open: isOpen })
   const aChanges: Array<Change> = []
   const bChanges: Array<Change> = []
   const a = trigger()
   const b = trigger()
-  attach('dialog', binding, 'a', open('a', true), 'trigger', {}, a, (c) => aChanges.push(c))
-  attach('dialog', binding, 'b', open('b', true), 'trigger', {}, b, (c) => bChanges.push(c))
-  expect(liveInstance('dialog', 'a')).not.toBe(liveInstance('dialog', 'b'))
+  attach(registry, 'dialog', binding, 'a', open('a', true), 'trigger', {}, a, (c) =>
+    aChanges.push(c),
+  )
+  attach(registry, 'dialog', binding, 'b', open('b', true), 'trigger', {}, b, (c) =>
+    bChanges.push(c),
+  )
+  expect(liveInstance(registry, 'dialog', 'a')).not.toBe(liveInstance(registry, 'dialog', 'b'))
 
   // The Model closes b only. With no element shown, its exit completes at once.
-  sync('dialog', 'b', open('b', false))
+  sync(registry, 'dialog', 'b', open('b', false))
 
-  expect(liveInstance('dialog', 'a')?.get()).toMatchObject({ open: true })
-  expect(liveInstance('dialog', 'b')?.get()).toMatchObject({ open: false, mounted: false })
+  expect(liveInstance(registry, 'dialog', 'a')?.get()).toMatchObject({ open: true })
+  expect(liveInstance(registry, 'dialog', 'b')?.get()).toMatchObject({
+    open: false,
+    mounted: false,
+  })
   expect(aChanges).toEqual([])
   expect(bChanges.map((c) => c.snapshot['mounted'])).toEqual([false])
 })
@@ -121,10 +134,9 @@ const foreign = () => document.documentElement.style.setProperty('overflow', 'hi
 
 test('a scroll lock nobody in the registry wrote warns once', () => {
   const warn = vi.spyOn(console, 'warn').mockImplementation(() => {})
-  resetLockWarning()
   foreign()
   mount(lockBinding(), trigger(), [])
-  attach('accordion', lockBinding(), 'other', state, 'trigger', {}, trigger(), () => {})
+  attach(registry, 'accordion', lockBinding(), 'other', state, 'trigger', {}, trigger(), () => {})
   expect(warn).toHaveBeenCalledTimes(1)
   expect(warn.mock.calls[0]?.[0]).toContain('another provider')
   warn.mockRestore()
@@ -133,12 +145,11 @@ test('a scroll lock nobody in the registry wrote warns once', () => {
 
 test('our own lock is stamped, so a second adapter modal does not warn', () => {
   const warn = vi.spyOn(console, 'warn').mockImplementation(() => {})
-  resetLockWarning()
   const releaseFirst = mount(lockBinding(), trigger(), [])
   expect(document.documentElement.hasAttribute(LOCK_MARKER)).toBe(true)
   // Core's own lock lands after our stamp, as it does for a real modal.
   foreign()
-  attach('accordion', lockBinding(), 'second', state, 'trigger', {}, trigger(), () => {})
+  attach(registry, 'accordion', lockBinding(), 'second', state, 'trigger', {}, trigger(), () => {})
   expect(warn).not.toHaveBeenCalled()
   releaseFirst()
   document.documentElement.style.removeProperty('overflow')
@@ -146,7 +157,6 @@ test('our own lock is stamped, so a second adapter modal does not warn', () => {
 })
 
 test('the marker is removed with the last modal, and destroyAll clears it', () => {
-  resetLockWarning()
   const release = mount(lockBinding(), trigger(), [])
   expect(document.documentElement.hasAttribute(LOCK_MARKER)).toBe(true)
   release()

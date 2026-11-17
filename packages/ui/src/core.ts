@@ -1,8 +1,9 @@
-import { Effect, Queue, Schema, Stream } from 'effect'
+import { Effect, Option, Queue, Schema, Stream } from 'effect'
 import { Command, Mount } from 'foldkit'
 import type { Attribute, Html, HtmlBuilder } from 'foldkit/html'
 import { defineMessageUnion } from 'foldkit/message'
 import { attach, type Binding, type Change, type Snapshot, sync } from './internal/bind.ts'
+import { findRegistry, UiRegistry } from './registry.ts'
 import { type Attrs, type PartProps, type Primitive, renderPhase } from './internal/render.ts'
 
 // ── Messages ────────────────────────────────────────────────────────────────
@@ -73,16 +74,12 @@ export type Component<State, Slot extends string> = Readonly<{
   bound: ReadonlyArray<Slot>
 }>
 
-const bindings = new Map<string, Binding>()
-
-/** The registered Binding for a component name. Tests attach through it. */
-export const bindingFor = (name: string) => bindings.get(name)
-
-export const defineComponent = <State, Slot extends string>(
+/** Pure and global-free: the Binding the registry holds for a component. */
+export const bindingOf = <State, Slot extends string>(
   component: Component<State, Slot>,
-): Component<State, Slot> => {
+): Binding => {
   const decode = Schema.decodeUnknownSync(component.state)
-  bindings.set(component.name, {
+  return {
     primitive: component.primitive,
     options: (state) => component.options(decode(state)),
     controlled: component.controlled,
@@ -92,9 +89,13 @@ export const defineComponent = <State, Slot extends string>(
     fold: (state, snapshot) => component.fold(decode(state), snapshot),
     guard: (state, snapshot) => component.guard?.(decode(state), snapshot) ?? true,
     foldkitEvents: component.text === undefined ? {} : { [component.text]: ['input'] },
-  })
-  return component
+  }
 }
+
+/** Names the shape of a component for the compiler. It registers nothing. */
+export const defineComponent = <State, Slot extends string>(
+  component: Component<State, Slot>,
+): Component<State, Slot> => component
 
 /**
  * Applies a Message to one component's state. It returns the same object when
@@ -126,30 +127,52 @@ export const BindPart = Mount.defineStream('BindUiPart', {
   execute: ({ element, component, key, slot, props, state }) =>
     Stream.callback<Message>((queue) =>
       Effect.gen(function* () {
-        const binding = bindings.get(component)
-        if (binding === undefined || !(element instanceof HTMLElement)) {
+        // A Mount cannot `yield*` the Resource: its static requirement is only
+        // Scope, and the context it runs in holds Foldkit's own services, not the
+        // app's Resources. The layer leaves the same registry on the app's container
+        // element, and the Mount finds it from its own element.
+        const registry = findRegistry(element)
+        const binding = Option.flatMap(registry, (r) =>
+          Option.fromNullishOr(r.bindings.get(component)),
+        )
+        if (
+          Option.isNone(registry) ||
+          Option.isNone(binding) ||
+          !(element instanceof HTMLElement)
+        ) {
+          console.error(`[foldlab] No UiRegistry binding for "${component}". Provide its layer.`)
           return yield* Effect.never
         }
         yield* Effect.acquireRelease(
           Effect.sync(() =>
-            attach(component, binding, key, state, slot, props, element, (change: Change) => {
-              Queue.offerUnsafe(
-                queue,
-                change.refused
-                  ? Message.RefusedUiChange({
-                      component,
-                      key,
-                      snapshot: change.snapshot,
-                      reason: change.reason,
-                    })
-                  : Message.ChangedUiState({
-                      component,
-                      key,
-                      snapshot: change.snapshot,
-                      reason: change.reason,
-                    }),
-              )
-            }),
+            attach(
+              registry.value,
+              component,
+              binding.value,
+              key,
+              state,
+              slot,
+              props,
+              element,
+              (change: Change) => {
+                Queue.offerUnsafe(
+                  queue,
+                  change.refused
+                    ? Message.RefusedUiChange({
+                        component,
+                        key,
+                        snapshot: change.snapshot,
+                        reason: change.reason,
+                      })
+                    : Message.ChangedUiState({
+                        component,
+                        key,
+                        snapshot: change.snapshot,
+                        reason: change.reason,
+                      }),
+                )
+              },
+            ),
           ),
           (release) => Effect.sync(release),
         )
@@ -179,8 +202,9 @@ export const syncUiState = Command.define('SyncUiState', {
   args: { specs: Schema.Array(Spec) },
   messages: [Message.CompletedUiSync],
   execute: ({ specs }) =>
-    Effect.sync(() => {
-      for (const spec of specs) sync(spec.component, spec.key, spec.state)
+    Effect.gen(function* () {
+      const registry = yield* UiRegistry
+      for (const spec of specs) sync(registry, spec.component, spec.key, spec.state)
       return Message.CompletedUiSync()
     }),
 })

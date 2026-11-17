@@ -3,9 +3,10 @@ import { Schema } from 'effect'
 import { Runtime } from 'foldkit'
 import type { Document, HtmlBuilder } from 'foldkit/html'
 import { defineMessageUnion } from 'foldkit/message'
-import { Combobox, Message as UiMessage } from '@foldlab/ui'
+import { Combobox, Message as UiMessage, Ui } from '@foldlab/ui'
 import './styles.css'
 
+const root = document.getElementById('root') ?? document.body
 const rows = Number(new URLSearchParams(location.search).get('rows') ?? 50)
 const items = [
   { value: 'a', label: 'Alpha' },
@@ -82,7 +83,8 @@ Runtime.run(
     init,
     update: update as never,
     view,
-    container: document.getElementById('root'),
+    container: root,
+    resources: Ui.layerOf([Combobox.component], root),
     slow: false,
   }),
 )

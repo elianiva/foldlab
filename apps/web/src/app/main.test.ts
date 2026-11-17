@@ -58,8 +58,8 @@ test('ui-sdk snapshots flow into field validation, and every one is confirmed by
     message(ui(pick('ada', 'Ada Lovelace'), 'assignee')),
     sync,
     model((m) => {
-      expect(m.assigneeBox.value).toEqual(['ada'])
-      expect(m.assigneeBox.query).toBe('Ada Lovelace')
+      expect(m.ui.assigneeBox.value).toEqual(['ada'])
+      expect(m.ui.assigneeBox.query).toBe('Ada Lovelace')
       expect(m.owner.assignee._tag).toBe('Valid')
     }),
     message(ui(pickMany(['sms', 'slack']), 'channels')),
@@ -68,7 +68,7 @@ test('ui-sdk snapshots flow into field validation, and every one is confirmed by
     // A Message for an unknown key changes nothing.
     message(ui(pick('grace'), 'someone-else')),
     sync,
-    model((m) => expect(m.assigneeBox.value).toEqual(['ada'])),
+    model((m) => expect(m.ui.assigneeBox.value).toEqual(['ada'])),
   )
 })
 
@@ -102,8 +102,8 @@ test('typing is a Foldkit Message: it sets the query and opens the list', () => 
     ),
     sync,
     model((m) => {
-      expect(m.assigneeBox.query).toBe('al')
-      expect(m.assigneeBox.open).toBe(true)
+      expect(m.ui.assigneeBox.query).toBe('al')
+      expect(m.ui.assigneeBox.open).toBe(true)
     }),
   )
 })
@@ -114,7 +114,7 @@ test('the app refuses a change by ignoring it: the sync Command carries the old 
       ? update(model, Message.GotUiMessage({ message: UiMessage.CompletedUiSync() }))
       : update(model, msg)
   const result = refusing(init().model, ui(pick('ada', 'Ada Lovelace'), 'assignee'))
-  expect(result.model.assigneeBox.value).toEqual([])
+  expect(result.model.ui.assigneeBox.value).toEqual([])
 })
 
 test('submit validates everything at once', () => {

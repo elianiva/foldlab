@@ -22,3 +22,27 @@ The snippet is distilled from the demo's "Drop dialogs" button. I have not run i
 ## Two providers' scroll locks do not coordinate
 
 With an `@foldkit/ui` dialog open and another provider's modal open over it, closing the `@foldkit/ui` dialog first removes `overflow: hidden` from `html` while the second modal is still open. A lock counter or a shared owner would fix it. Our answer is the stacking rule in `adapter-api.md`.
+
+## Draft issue for `vercel-labs/ui`: a supported adapter entry point
+
+Not filed. Title: **A supported entry point for framework adapters, and option types that survive `exactOptionalPropertyTypes`**
+
+> `@ui-sdk/core` ships adapters for React, Vue, Svelte, Solid and web components, and they all build on `@ui-sdk/core/renderer`. Its header says it is not documented, may change with any release, and is not public API. I am writing an adapter for another framework (Foldkit, an Elm-style framework whose view is a pure function of one serialized Model), and I depend on that entry at `0.1.0-beta.7`, pinned.
+>
+> **1. A supported adapter entry point.** An adapter for a new framework needs the same small surface the first-party adapters use. What I call from `@ui-sdk/core/renderer`: `attrs(part, props, state)`, `present(part, props, state)` and `bind(part, el, host)` from `part.js`, plus `instance.part`, `get`, `setOptions` and `destroy` from the instance. I also read `startState` and `preview` and did not need them. Could these be documented and covered by semver, even as an explicit `@experimental` adapter surface? The things I had to learn by reading source:
+>
+> - `attrs` and `present` are pure given `(part, props, state)`, so a server or test renderer can compute them without a DOM. That is the property that makes a Model-driven adapter possible, and it is not written down.
+> - A part's `present` can depend on state that exists only in a live instance. `mounted` stays true during the exit animation and is cleared when `animateOut` finishes. A fresh instance derives it from `open`. A pure render therefore drops the part immediately, and the adapter has to carry `mounted` itself and learn of the end from `onOpenChangeComplete`. Documenting which state keys are lifecycle, and that `onOpenChangeComplete` is the end signal, would save the next adapter author this.
+> - `bind(part, el, { by: 'framework', attaches })` lets the framework own some events. It is how I leave text entry to the framework. It is only visible in `part.d.ts`.
+> - `createChange` on a controlled key calls the callback and waits for the value to return through `sync`. An adapter that acks into the instance before emitting avoids a lost update on two changes in one tick. This is worth a sentence in "Handle Changes".
+>
+> **2. `definePrimitive`'s option types under `exactOptionalPropertyTypes`.** With that flag on, `AccordionPrimitive` is not assignable to `Primitive`: the primitive's `options` is `Record<string, PropSpec> | undefined`, and `Primitive` declares `options?: Record<string, PropSpec>`. Every adapter that stores primitives generically needs a cast. I have one, in one function:
+>
+> ```ts
+> const primitiveOf = (primitive: (options: never) => PrimitiveInstance): Primitive =>
+>   primitive as Primitive
+> ```
+>
+> Declaring `options?: Record<string, PropSpec> | undefined` and `slots?: object | undefined` on `Primitive`, or making `definePrimitive` omit the keys it does not set, would remove the cast. I take the cast as evidence that the adapter entry is missing something: the exported types are meant for adapters to consume, and they do not accept the library's own primitives under a flag many strict projects use.
+>
+> Happy to send a PR for either. Versions: `@ui-sdk/core@0.1.0-beta.7`, TypeScript 7.1 beta (`tsrs`).

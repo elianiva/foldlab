@@ -1,7 +1,9 @@
 // Bind phase. The only file that attaches a live ui-sdk instance to an element.
-// Instances live in this registry, outside the Model, keyed by the key the
-// Model carries. An entry is created by the first part that mounts and
-// destroyed when the last one unmounts.
+// Instances live in a `Registry`, outside the Model, keyed by the key the Model
+// carries. An entry is created by the first part that mounts and destroyed when
+// the last one unmounts. A Registry is a value: the app provides one as a
+// Foldkit Resource (see `registry.ts`), and a test makes its own. This module
+// holds no mutable state of its own.
 import type { PrimitiveInstance } from '@ui-sdk/core'
 import { bind } from '@ui-sdk/core/renderer'
 import type { PartProps, Primitive } from './render.ts'
@@ -46,7 +48,23 @@ type Entry = {
   readonly bound: WeakMap<Element, () => void>
 }
 
-const registry = new Map<string, Entry>()
+/** Everything the bind phase owns. One per app, and one per test. */
+export type Registry = Readonly<{
+  /** Component name to Binding. Built from the components the app declares. */
+  bindings: ReadonlyMap<string, Binding>
+  entries: Map<string, Entry>
+  /** Adapter modals that hold the document scroll lock. */
+  lockOwners: Set<symbol>
+  /** Whether the foreign-lock warning has fired. */
+  lockWarning: { fired: boolean }
+}>
+
+export const makeRegistry = (bindings: ReadonlyMap<string, Binding>): Registry => ({
+  bindings,
+  entries: new Map(),
+  lockOwners: new Set(),
+  lockWarning: { fired: false },
+})
 
 // ── Scroll-lock ownership ───────────────────────────────────────────────────
 // Dev-mode check behind the stacking rule: one provider per stacking domain.
@@ -54,8 +72,6 @@ const registry = new Map<string, Entry>()
 // on the document while any adapter modal holds the lock, and a lock with no
 // marker belongs to someone else.
 export const LOCK_MARKER = 'data-foldlab-lock'
-const lockOwners = new Set<symbol>()
-let warnedAboutForeignLock = false
 
 const isDev = () => (import.meta as { env?: { DEV?: boolean } }).env?.DEV === true
 
@@ -63,9 +79,10 @@ const foreignLock = (doc: Document) =>
   !doc.documentElement.hasAttribute(LOCK_MARKER) &&
   (doc.documentElement.style.overflow === 'hidden' || doc.body.style.overflow === 'hidden')
 
-const claimLock = (doc: Document): (() => void) => {
-  if (isDev() && !warnedAboutForeignLock && lockOwners.size === 0 && foreignLock(doc)) {
-    warnedAboutForeignLock = true
+const claimLock = (registry: Registry, doc: Document): (() => void) => {
+  const { lockOwners, lockWarning } = registry
+  if (isDev() && !lockWarning.fired && lockOwners.size === 0 && foreignLock(doc)) {
+    lockWarning.fired = true
     console.warn(
       '[foldlab] A scroll lock written by another provider (for example @foldkit/ui) is active ' +
         'while an adapter modal opens. Locks from two providers do not coordinate: stack modals ' +
@@ -81,10 +98,6 @@ const claimLock = (doc: Document): (() => void) => {
   }
 }
 
-/** Forgets the one-time warning. Tests only. */
-export const resetLockWarning = () => {
-  warnedAboutForeignLock = false
-}
 const registryKey = (component: string, key: string) => `${component}:${key}`
 
 const snapshotOf = (binding: Binding, state: unknown): Snapshot => {
@@ -127,6 +140,7 @@ const optionsOf = (entry: Entry) => {
 }
 
 export const attach = (
+  registry: Registry,
   component: string,
   binding: Binding,
   key: string,
@@ -137,7 +151,7 @@ export const attach = (
   sink: (change: Change) => void,
 ): (() => void) => {
   const id = registryKey(component, key)
-  let entry = registry.get(id)
+  let entry = registry.entries.get(id)
   if (entry === undefined) {
     const created: Entry = {
       // Assigned on the next line: the options it is built from close over `created`.
@@ -150,7 +164,7 @@ export const attach = (
       bound: new WeakMap(),
     }
     created.instance = binding.primitive(optionsOf(created))
-    registry.set(id, created)
+    registry.entries.set(id, created)
     entry = created
   }
   const held = entry
@@ -160,7 +174,8 @@ export const attach = (
   held.bound.get(element)?.()
   const events = binding.foldkitEvents[slot]
   // Before `bind`: core takes the lock inside it, so the check sees what was there first.
-  const releaseLock = binding.lockSlot === slot ? claimLock(element.ownerDocument) : undefined
+  const releaseLock =
+    binding.lockSlot === slot ? claimLock(registry, element.ownerDocument) : undefined
   const unbind = bind(
     held.instance.part(slot, props),
     element,
@@ -176,7 +191,7 @@ export const attach = (
     held.sinks.delete(sink)
     if (--held.leases === 0) {
       held.instance.destroy()
-      if (registry.get(id) === held) registry.delete(id)
+      if (registry.entries.get(id) === held) registry.entries.delete(id)
     }
   }
   held.bound.set(element, release)
@@ -184,22 +199,20 @@ export const attach = (
 }
 
 /** The live instance for a key, if any part of it is mounted. */
-export const liveInstance = (component: string, key: string) =>
-  registry.get(registryKey(component, key))?.instance
+export const liveInstance = (registry: Registry, component: string, key: string) =>
+  registry.entries.get(registryKey(component, key))?.instance
 
-/** Destroys every instance. Runs on HMR dispose, and between tests. */
-export const destroyAll = () => {
-  for (const entry of registry.values()) entry.instance.destroy()
-  registry.clear()
-  lockOwners.clear()
+/** Destroys every instance and drops every lock claim. Runs when the app's scope closes. */
+export const closeRegistry = (registry: Registry) => {
+  for (const entry of registry.entries.values()) entry.instance.destroy()
+  registry.entries.clear()
+  registry.lockOwners.clear()
+  if (typeof document !== 'undefined') document.documentElement.removeAttribute(LOCK_MARKER)
 }
 
-const hot = (import.meta as { hot?: { dispose: (callback: () => void) => void } }).hot
-hot?.dispose(destroyAll)
-
 /** Model to instance. Confirms what the instance acked, or reverts it when `update` refused. */
-export const sync = (component: string, key: string, state: unknown) => {
-  const entry = registry.get(registryKey(component, key))
+export const sync = (registry: Registry, component: string, key: string, state: unknown) => {
+  const entry = registry.entries.get(registryKey(component, key))
   if (entry === undefined) return
   entry.state = state
   entry.instance.setOptions(optionsOf(entry))

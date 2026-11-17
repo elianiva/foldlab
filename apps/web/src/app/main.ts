@@ -9,12 +9,20 @@ import {
   Dialog,
   Field,
   Message as UiMessage,
-  specOf,
-  syncUiState,
+  Ui,
+  UiRegistry,
   stamp,
-  type Spec,
 } from '@foldlab/ui'
 import { css } from '../../styled-system/css'
+
+// Every ui-sdk component the page uses. `confirm` sits inside `settings`: two dialogs, two states.
+export const kit = Ui.define({
+  assigneeBox: Combobox.component,
+  channelBox: Combobox.component,
+  help: Accordion.component,
+  settings: Dialog.component,
+  confirm: Dialog.component,
+})
 
 // ── Model ───────────────────────────────────────────────────────────────────
 
@@ -27,13 +35,8 @@ export const Model = Schema.Struct({
   schedule: Schema.Struct({ start: Text, end: Text }),
   channels: Strings,
   // ui-sdk state lives in the Model as plain data, next to the validation state.
-  assigneeBox: Combobox.State,
-  channelBox: Combobox.State,
-  help: Accordion.State,
-  // The same dialog twice: through the adapter, and from @foldkit/ui.
-  settings: Dialog.State,
-  // Nested inside `settings`: two dialogs in two states at once.
-  confirm: Dialog.State,
+  ui: kit.Model,
+  // The same dialog, once more, from @foldkit/ui.
   dialogsVisible: Schema.Boolean,
   fkDialog: FkDialog.Model,
   submitted: Schema.Boolean,
@@ -119,11 +122,13 @@ export const init = () => ({
       end: FieldValidation.NotValidated({ value: '' }),
     },
     channels: FieldValidation.NotValidated({ value: [] }),
-    assigneeBox: Combobox.init({ key: 'assignee', items: people }),
-    channelBox: Combobox.init({ key: 'channels', items: channelItems, multiple: true }),
-    help: Accordion.init({ key: 'help', multiple: true }),
-    settings: Dialog.init({ key: 'settings', described: true }),
-    confirm: Dialog.init({ key: 'confirm', described: false }),
+    ui: {
+      assigneeBox: Combobox.init({ key: 'assignee', items: people }),
+      channelBox: Combobox.init({ key: 'channels', items: channelItems, multiple: true }),
+      help: Accordion.init({ key: 'help', multiple: true }),
+      settings: Dialog.init({ key: 'settings', described: true }),
+      confirm: Dialog.init({ key: 'confirm', described: false }),
+    },
     dialogsVisible: true,
     fkDialog: FkDialog.init({ id: 'fk-settings', isAnimated: true }),
     submitted: false,
@@ -147,8 +152,8 @@ export const isFormValid = (model: Model) =>
   FieldValidation.isValid(rules.end(model.schedule.start.value))(model.schedule.end) &&
   FieldValidation.isValid(rules.channels)(model.channels)
 
-export const update = (model: Model, message: Message): Update.Return<Model, Message> =>
-  Message.match<Update.Return<Model, Message>>(message, {
+export const update = (model: Model, message: Message): Update.Return<Model, Message, UiRegistry> =>
+  Message.match<Update.Return<Model, Message, UiRegistry>>(message, {
     ChangedName: ({ value }) => {
       const name = nameWithAvailability(value)
       return {
@@ -198,39 +203,26 @@ export const update = (model: Model, message: Message): Update.Return<Model, Mes
         },
       },
     }),
-    GotUiMessage: ({ message: ui }) => {
-      // A sync's own completion must not start another one.
-      if (ui._tag === 'CompletedUiSync') return { model }
-      const assigneeBox = Combobox.update(model.assigneeBox, ui)
-      const channelBox = Combobox.update(model.channelBox, ui)
-      const help = Accordion.update(model.help, ui)
-      const settings = Dialog.update(model.settings, ui)
-      const confirm = Dialog.update(model.confirm, ui)
-      const assigneeValue = assigneeBox.value[0] ?? ''
-      const assigneeChanged = assigneeValue !== (model.assigneeBox.value[0] ?? '')
-      const channelsChanged = channelBox.value.join() !== model.channelBox.value.join()
+    GotUiMessage: ({ message: child }) => {
+      const result = kit.update(model.ui, child)
+      const assigneeValue = result.model.assigneeBox.value[0] ?? ''
+      const assigneeChanged = assigneeValue !== (model.ui.assigneeBox.value[0] ?? '')
+      const channelsChanged =
+        result.model.channelBox.value.join() !== model.ui.channelBox.value.join()
       return {
         model: {
           ...model,
-          assigneeBox,
-          channelBox,
-          help,
-          settings,
-          confirm,
+          ui: result.model,
           owner: assigneeChanged
             ? { ...model.owner, assignee: FieldValidation.validate(rules.assignee)(assigneeValue) }
             : model.owner,
           channels: channelsChanged
-            ? FieldValidation.validate(rules.channels)(channelBox.value)
+            ? FieldValidation.validate(rules.channels)(result.model.channelBox.value)
             : model.channels,
         },
-        // Confirms the ack, or reverts it if this update refused the change.
-        commands: [
-          Command.mapMessage(
-            syncUiState({ specs: uiSpecs({ assigneeBox, channelBox, help, settings, confirm }) }),
-            (message) => Message.GotUiMessage({ message }),
-          ),
-        ],
+        commands: Command.mapMessages(result.commands, (message) =>
+          Message.GotUiMessage({ message }),
+        ),
       }
     },
     GotFkDialog: ({ message: child }) => {
@@ -247,8 +239,11 @@ export const update = (model: Model, message: Message): Update.Return<Model, Mes
       model: {
         ...model,
         dialogsVisible: !model.dialogsVisible,
-        settings: Dialog.init({ key: 'settings', described: true }),
-        confirm: Dialog.init({ key: 'confirm', described: false }),
+        ui: {
+          ...model.ui,
+          settings: Dialog.init({ key: 'settings', described: true }),
+          confirm: Dialog.init({ key: 'confirm', described: false }),
+        },
       },
     }),
     ClickedOpenFkDialog: () => {
@@ -279,18 +274,6 @@ export const update = (model: Model, message: Message): Update.Return<Model, Mes
       return { model: { ...next, submitted: isFormValid(next) } }
     },
   })
-
-// ── Bind phase wiring ───────────────────────────────────────────────────────
-
-const uiSpecs = (
-  state: Pick<Model, 'assigneeBox' | 'channelBox' | 'help' | 'settings' | 'confirm'>,
-): ReadonlyArray<Spec> => [
-  specOf(Combobox.component, state.assigneeBox),
-  specOf(Combobox.component, state.channelBox),
-  specOf(Accordion.component, state.help),
-  specOf(Dialog.component, state.settings),
-  specOf(Dialog.component, state.confirm),
-]
 
 // ── View ────────────────────────────────────────────────────────────────────
 
@@ -426,7 +409,7 @@ const comboField = (h: HtmlBuilder<Message>, config: ComboFieldConfig): Html => 
 }
 
 const helpSection = (h: HtmlBuilder<Message>, model: Model): Html => {
-  const accordion = Accordion.parts(model.help, h, ui)
+  const accordion = Accordion.parts(model.ui.help, h, ui)
   const item = (value: string, title: string, body: string) =>
     accordion.item(
       { value },
@@ -451,8 +434,8 @@ const helpSection = (h: HtmlBuilder<Message>, model: Model): Html => {
 }
 
 const dialogs = (h: HtmlBuilder<Message>, model: Model): Html => {
-  const d = Dialog.parts(model.settings, h, ui)
-  const c = Dialog.parts(model.confirm, h, ui)
+  const d = Dialog.parts(model.ui.settings, h, ui)
+  const c = Dialog.parts(model.ui.confirm, h, ui)
   if (!model.dialogsVisible) {
     return h.section(
       [h.Class(group)],
@@ -549,7 +532,7 @@ export const view = (model: Model, h: HtmlBuilder<Message>): Document => ({
         id: 'owner-assignee',
         label: 'Assignee',
         description: 'Who triages new issues.',
-        box: model.assigneeBox,
+        box: model.ui.assigneeBox,
         field: model.owner.assignee,
         placeholder: 'Search people',
       }),
@@ -575,7 +558,7 @@ export const view = (model: Model, h: HtmlBuilder<Message>): Document => ({
         id: 'channels',
         label: 'Notification channels',
         description: 'Pick one or more.',
-        box: model.channelBox,
+        box: model.ui.channelBox,
         field: model.channels,
         placeholder: 'Search channels',
       }),

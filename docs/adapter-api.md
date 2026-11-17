@@ -83,7 +83,7 @@ help: Accordion.init({ key: 'help', multiple: true })
 GotUiMessage: ({ message }) => ({
   model: { ...model, help: Accordion.update(model.help, message) },
 })
-// update also returns a confirmation Command
+// update also returns a confirmation Command (the hand-wired path; `Ui.define` does this for you, see kit.md)
 syncUiState({ specs: [specOf(Accordion.component, model.help)] })
 // view
 const accordion = Accordion.parts(model.help, h, ui) // ui = { toMessage }
@@ -237,14 +237,14 @@ Do not put `h.OnClick` on a slot to change the ui-sdk state. It does not reach c
 1. _Synchronous guard._ Policy the app knows at view time (max selections, a locked row, a value out of range) goes in `guard`. The callback computes the next snapshot and asks the guard. On false it does not change its state and does not call `setOptions`, and it emits `RefusedUiChange`. Not acking is the veto: for a controlled key core keeps the old option value, so nothing moves and no round trip happens.
 2. _Asynchronous revert._ Policy only the server can answer is applied optimistically. `update` ignores or rewrites the change, and the `SyncUiState` Command pushes the Model's state back into the instance. There is a brief window where the instance holds the acked value.
 
-**Attachment is idempotent.** An entry keeps one binding per element. Attaching the same element again unbinds the old one first, so a reused node never produces two changes per interaction. HMR dispose destroys every registry entry (`destroyAll`).
+**Attachment is idempotent.** An entry keeps one binding per element. Attaching the same element again unbinds the old one first, so a reused node never produces two changes per interaction. The registry is a value that the app provides as a Foldkit Resource, so it closes with the app's scope. There is no module-level state and no reset hook. See [kit.md](kit.md#the-registry).
 
 **One Mount per part.** Part props (`value` on an option, `key` on a star) come from the render call, not the DOM. A root-scoped scan could not rebuild `part(slot, props)` without re-serializing props into data attributes and keeping them in sync. Portaled parts leave the root's subtree and need their own Mount anyway.
 
 **Phases.**
 
 - _Render_, `internal/render.ts`: throwaway instance from options, reads state once, calls `attrs` and `present`, discards it. No `window`, no DOM, no counter.
-- _Bind_, `internal/bind.ts`: registry outside the Model keyed by `component:key`. The first part to mount creates the instance. The last one to unmount destroys it.
+- _Bind_, `internal/bind.ts`: a `Registry` value, outside the Model, keyed by `component:key`. The first part to mount creates the instance. The last one to unmount destroys it.
 - _`SyncUiState` Command_: `update` returns it after every ui Message.
 
 ### Where ui-sdk's shape was worth keeping
