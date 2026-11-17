@@ -53,6 +53,20 @@ const { UrlRequest } = Navigation
 export const toaster = Toast.makeToaster()
 
 // Every ui-sdk component the page uses. `confirm` sits inside `settings`: two dialogs, two states.
+/** The list as it would land if dropped now: the dragged item moved to where it hovers. */
+export const previewOrder = (
+  order: ReadonlyArray<string>,
+  dragging: string,
+  over: string,
+): ReadonlyArray<string> => {
+  const from = order.indexOf(dragging)
+  const to = order.indexOf(over)
+  if (from < 0 || to < 0 || from === to) return order
+  const next = [...order]
+  next.splice(to, 0, ...next.splice(from, 1))
+  return next
+}
+
 export const kit = Ui.define({
   assigneeBox: Combobox.component,
   channelBox: Combobox.component,
@@ -118,6 +132,7 @@ export const Model = Schema.Struct({
     scroll: Schema.Finite,
     order: Schema.Array(Schema.String),
     dragging: Schema.String,
+    over: Schema.String,
     step: Schema.Finite,
   }),
   name: Text,
@@ -196,6 +211,8 @@ export const Message = defineMessageUnion({
   ChangedDemoPage: { value: Schema.Finite },
   ScrolledList: { top: Schema.Finite },
   StartedDrag: { id: Schema.String },
+  EnteredDrag: { id: Schema.String },
+  EndedDrag: {},
   DroppedOn: { id: Schema.String },
   ChosenStep: { value: Schema.Finite },
   ClickedToast: { type: Schema.String },
@@ -264,6 +281,7 @@ export const init = (flags: Flags, url: Url.Url) => ({
       scroll: 0,
       order: ['Design', 'Build', 'Review', 'Ship'],
       dragging: '',
+      over: '',
       step: 0,
     },
     name: FieldValidation.NotValidated({ value: '' }),
@@ -489,15 +507,11 @@ export const update = (model: Model, message: Message): Update.Return<Model, Mes
     }),
     ScrolledList: ({ top }) => ({ model: { ...model, demo: { ...model.demo, scroll: top } } }),
     StartedDrag: ({ id }) => ({ model: { ...model, demo: { ...model.demo, dragging: id } } }),
-    DroppedOn: ({ id }) => {
-      const from = model.demo.order.indexOf(model.demo.dragging)
-      const to = model.demo.order.indexOf(id)
-      if (from < 0 || to < 0 || from === to) {
-        return { model: { ...model, demo: { ...model.demo, dragging: '' } } }
-      }
-      const order = [...model.demo.order]
-      order.splice(to, 0, ...order.splice(from, 1))
-      return { model: { ...model, demo: { ...model.demo, order, dragging: '' } } }
+    EnteredDrag: ({ id }) => ({ model: { ...model, demo: { ...model.demo, over: id } } }),
+    EndedDrag: () => ({ model: { ...model, demo: { ...model.demo, dragging: '', over: '' } } }),
+    DroppedOn: () => {
+      const order = previewOrder(model.demo.order, model.demo.dragging, model.demo.over)
+      return { model: { ...model, demo: { ...model.demo, order, dragging: '', over: '' } } }
     },
     ChosenStep: ({ value }) => ({ model: { ...model, demo: { ...model.demo, step: value } } }),
     ChangedDemoPage: ({ value }) => ({

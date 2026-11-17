@@ -1,7 +1,7 @@
 // Components with no ui-sdk primitive. Foldkit owns them end to end: state in the Model,
 // events through `h.On*`, no Mount. Nothing here is bound, so Scene can drive all of it.
 import { sectionOf, stacked } from './layout.ts'
-import { Message } from '../app/main.ts'
+import { Message, previewOrder } from '../app/main.ts'
 import type { Page } from './types.ts'
 
 const ROW = 32
@@ -114,7 +114,7 @@ export const nativePages: ReadonlyArray<Page> = [
         [
           h.div(
             [h.Attribute('data-slot', 'sortable')],
-            model.demo.order.map((id) =>
+            previewOrder(model.demo.order, model.demo.dragging, model.demo.over).map((id) =>
               h.div(
                 [
                   h.Key(id),
@@ -123,6 +123,8 @@ export const nativePages: ReadonlyArray<Page> = [
                   h.Draggable(true),
                   h.AllowDrop(),
                   h.OnDragStart(Message.StartedDrag({ id })),
+                  h.OnDragEnter(Message.EnteredDrag({ id })),
+                  h.OnDragEnd(Message.EndedDrag()),
                   h.OnDrop(Message.DroppedOn({ id })),
                 ],
                 [id],
