@@ -1,6 +1,6 @@
 // Pages for elements that need no behavior. The code under each preview is the
 // call that produced it.
-import { Elements as E, Meter } from '@foldlab/ui'
+import { Elements as E, Meter, Pagination } from '@foldlab/ui'
 import { css } from '../../styled-system/css'
 import { Message } from '../app/main.ts'
 import { sectionOf, stacked } from './layout.ts'
@@ -11,6 +11,7 @@ const meterHeaderCls = css({
   justifyContent: 'space-between',
   fontSize: '0.85rem',
 })
+const pagerCls = css({ display: 'flex', gap: '0.25rem', margin: 0, padding: 0, listStyle: 'none' })
 const code = (...lines: ReadonlyArray<string>) => lines.join('\n')
 
 export const staticPages: ReadonlyArray<Page> = [
@@ -285,42 +286,42 @@ export const staticPages: ReadonlyArray<Page> = [
     id: 'pagination',
     title: 'Pagination',
     description: 'Moves between pages of a long list. State lives in the Model.',
-    render: ({ h, model }) => {
-      const pages = 8
-      const current = model.demo.pagination
-      const go = (value: number) => Message.ChangedDemoPage({ value })
+    render: ({ h, model, ui }) => {
+      const pg = Pagination.parts(model.ui.pages, h, ui)
+      const items = Pagination.paginationRange({
+        page: model.ui.pages.page,
+        pageCount: model.ui.pages.pageCount,
+      })
       return [
         sectionOf(
           h,
           'Basic',
           [
-            E.buttonGroup(h, [
-              E.button(
-                h,
-                { disabled: current <= 1 },
-                [h.OnClick(go(current - 1)), h.AriaLabel('Previous')],
-                ['\u2039'],
-              ),
-              ...Array.from({ length: pages }, (_, index) =>
-                E.button(
-                  h,
-                  { variant: index + 1 === current ? 'primary' : 'secondary' },
+            pg.root(
+              {},
+              [h.AriaLabel('Pagination')],
+              [
+                pg.list(
+                  {},
+                  [h.Class(pagerCls)],
                   [
-                    h.OnClick(go(index + 1)),
-                    ...(index + 1 === current ? [h.AriaCurrent('page')] : []),
+                    pg.item({}, [], [pg.previous({}, [], ['\u2039'])]),
+                    ...items.map((entry, index) =>
+                      typeof entry === 'number'
+                        ? pg.item(
+                            {},
+                            [h.Key(`p${entry}`)],
+                            [pg.link({ page: entry, id: String(entry) }, [], [String(entry)])],
+                          )
+                        : pg.item({}, [h.Key(`e${index}`)], [pg.ellipsis({}, [], ['\u2026'])]),
+                    ),
+                    pg.item({}, [], [pg.next({}, [], ['\u203a'])]),
                   ],
-                  [String(index + 1)],
                 ),
-              ),
-              E.button(
-                h,
-                { disabled: current >= pages },
-                [h.OnClick(go(current + 1)), h.AriaLabel('Next')],
-                ['\u203a'],
-              ),
-            ]),
+              ],
+            ),
           ],
-          "E.button(h, { variant: current === n ? 'primary' : 'secondary' }, [h.OnClick(go(n))], [String(n)])",
+          'const pg = Pagination.parts(state, h, ui)\\npg.root({}, [], [pg.list({}, [], [pg.item({}, [], [pg.link({ page }, [], [label])])])])',
         ),
       ]
     },

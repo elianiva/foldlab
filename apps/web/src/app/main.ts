@@ -33,6 +33,7 @@ import {
   Slider,
   Switch,
   Meter,
+  Pagination,
   Progress,
   Separator,
   Toolbar,
@@ -126,6 +127,7 @@ export const kit = Ui.define({
   avatarImage: Avatar.component,
   avatarItem: Avatar.component,
   segmented: SegmentedControl.component,
+  pages: Pagination.component,
 })
 
 // ── Model ───────────────────────────────────────────────────────────────────
@@ -143,7 +145,6 @@ export const Model = Schema.Struct({
   route: AppRoute,
   demo: Schema.Struct({
     loading: Schema.Boolean,
-    pagination: Schema.Finite,
     revealed: Schema.Boolean,
     copied: Schema.String,
     scroll: Schema.Finite,
@@ -225,7 +226,6 @@ export const Message = defineMessageUnion({
   ToggledReveal: {},
   ClickedCopy: { text: Schema.String },
   CompletedCopy: { text: Schema.String },
-  ChangedDemoPage: { value: Schema.Finite },
   ScrolledList: { top: Schema.Finite },
   StartedDrag: { id: Schema.String },
   EnteredDrag: { id: Schema.String },
@@ -292,7 +292,6 @@ export const init = (flags: Flags, url: Url.Url) => ({
     route: urlToRoute(url),
     demo: {
       loading: false,
-      pagination: 1,
       revealed: false,
       copied: '',
       scroll: 0,
@@ -370,6 +369,7 @@ export const init = (flags: Flags, url: Url.Url) => ({
       avatarImage: Avatar.init({ key: 'avatar-image' }),
       avatarItem: Avatar.init({ key: 'avatar-item' }),
       segmented: SegmentedControl.init({ key: 'segmented', value: 'week' }),
+      pages: Pagination.init({ key: 'pages', pageCount: 8 }),
       tgBold: Toggle.init({ key: 'tg-bold' }),
       tgItalic: Toggle.init({ key: 'tg-italic' }),
       tgUnderline: Toggle.init({ key: 'tg-underline' }),
@@ -542,9 +542,6 @@ export const update = (model: Model, message: Message): Update.Return<Model, Mes
       return { model: { ...model, demo: { ...model.demo, order, dragging: '', over: '' } } }
     },
     ChosenStep: ({ value }) => ({ model: { ...model, demo: { ...model.demo, step: value } } }),
-    ChangedDemoPage: ({ value }) => ({
-      model: { ...model, demo: { ...model.demo, pagination: value } },
-    }),
     ClickedSubmit: () => {
       const next = {
         ...model,

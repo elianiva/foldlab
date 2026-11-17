@@ -188,36 +188,6 @@ export const table = <M>(
     ),
   ])
 
-export const meter = <M>(
-  h: HtmlBuilder<M>,
-  props: Readonly<{ value: number; max?: number; label: string }>,
-): Html => {
-  const max = props.max ?? 100
-  const percent = Math.max(0, Math.min(100, (props.value / max) * 100))
-  return h.div(
-    [
-      ...data(h, 'meter'),
-      h.Role('meter'),
-      h.AriaLabel(props.label),
-      h.AriaValuemin(0),
-      h.AriaValuemax(max),
-      h.AriaValuenow(props.value),
-    ],
-    [
-      h.div(data(h, 'meter-label'), [
-        h.span([], [props.label]),
-        h.span([], [`${Math.round(percent)}%`]),
-      ]),
-      h.div(data(h, 'meter-track'), [
-        h.div([...data(h, 'meter-indicator'), h.Style({ width: `${percent}%` })], []),
-      ]),
-    ],
-  )
-}
-
-export const toolbar = <M>(h: HtmlBuilder<M>, children: Children): Html =>
-  h.div([...data(h, 'toolbar'), h.Role('toolbar')], children)
-
 export const grid = <M>(
   h: HtmlBuilder<M>,
   props: Readonly<{ columns?: number }>,
@@ -429,22 +399,6 @@ export const kbd = <M>(h: HtmlBuilder<M>, keys: string): Html => h.span(data(h, 
 export const spinner = <M>(h: HtmlBuilder<M>, size: 'sm' | 'base' | 'lg' = 'base'): Html =>
   loader(h, size)
 
-export const avatar = <M>(
-  h: HtmlBuilder<M>,
-  props: Readonly<{ name: string; size?: 'sm' | 'base' | 'lg' }>,
-): Html =>
-  h.span(
-    [...data(h, 'avatar', { size: props.size ?? 'base' }), h.Role('img'), h.AriaLabel(props.name)],
-    [
-      props.name
-        .split(/\s+/)
-        .map((word) => word.charAt(0))
-        .slice(0, 2)
-        .join('')
-        .toUpperCase(),
-    ],
-  )
-
 export const item = <M>(
   h: HtmlBuilder<M>,
   props: Readonly<{ title: string; description?: string }>,
@@ -512,22 +466,6 @@ export const nav = <M>(
         [entry.label],
       ),
     ),
-  )
-
-export const progress = <M>(
-  h: HtmlBuilder<M>,
-  props: Readonly<{ value: number; label: string }>,
-): Html =>
-  h.div(
-    [
-      ...data(h, 'progress'),
-      h.Role('progressbar'),
-      h.AriaLabel(props.label),
-      h.AriaValuemin(0),
-      h.AriaValuemax(100),
-      h.AriaValuenow(props.value),
-    ],
-    [h.div([...data(h, 'meter-indicator'), h.Style({ width: `${props.value}%` })], [])],
   )
 
 export const separator = <M>(h: HtmlBuilder<M>, vertical = false): Html =>
