@@ -580,12 +580,8 @@ const base = {
     gap: '0.35rem',
   },
   '[data-slot="combobox-content"]': {
-    position: 'absolute',
-    top: '100%',
-    insetInlineStart: 0,
     zIndex: 5,
-    marginTop: '0.25rem',
-    minWidth: '100%',
+    width: 'var(--anchor-width)',
     maxHeight: '14rem',
     overflow: 'auto',
     padding: '0.25rem',
@@ -1491,7 +1487,6 @@ const kit = {
     boxShadow: 'var(--elev-card)',
     cursor: 'grab',
   },
-  '[data-slot="sortable-item"][data-dragging]': { opacity: 0.45 },
   '[data-slot="questionnaire"]': {
     display: 'flex',
     flexDirection: 'column',
@@ -1505,27 +1500,6 @@ const kit = {
     color: 'var(--fl-muted)',
   },
   '[data-slot="questionnaire"] h3, [data-slot="questionnaire"] p': { margin: 0 },
-  '[data-slot="animation"]': {
-    display: 'inline-flex',
-    alignItems: 'center',
-    justifyContent: 'center',
-    width: '6rem',
-    height: '3rem',
-    borderRadius: '8px',
-    background: 'var(--fl-accent-soft)',
-    color: 'var(--fl-accent)',
-  },
-  '[data-animation="fade"]': { animation: 'fl-fade 1.6s ease-in-out infinite' },
-  '[data-animation="slide"]': { animation: 'fl-slide 1.6s ease-in-out infinite' },
-  '[data-animation="pulse"]': { animation: 'fl-pulse 1.6s ease-in-out infinite' },
-  '[data-animation="spin"]': { animation: 'fl-spin 2s linear infinite' },
-  '@media (prefers-reduced-motion: reduce)': { '[data-slot="animation"]': { animation: 'none' } },
-  '@keyframes fl-fade': { '0%, 100%': { opacity: 1 }, '50%': { opacity: 0.2 } },
-  '@keyframes fl-slide': {
-    '0%, 100%': { translate: '-0.6rem 0' },
-    '50%': { translate: '0.6rem 0' },
-  },
-  '@keyframes fl-pulse': { '0%, 100%': { scale: 1 }, '50%': { scale: 1.12 } },
   '@keyframes fl-spin': { to: { rotate: '360deg' } },
   '[data-slot="scroll-area"]': {
     position: 'relative',
@@ -1565,6 +1539,8 @@ const chevronIcon = svg('<path d="M6 9l6 6 6-6"/>')
 // Motion follows Emil Kowalski's rules: ease-out curves, short durations, nothing
 // scales from zero, and every transition has a reduced-motion fallback.
 const ease = 'cubic-bezier(0.23, 1, 0.32, 1)'
+// Dialogs cover the page, so they ease in more gently than a small popup, and leave quicker.
+const soft = 'cubic-bezier(0.25, 0.8, 0.3, 1)'
 const hidden = '[data-closed], [data-starting-style], [data-ending-style]'
 const popups = ['popover', 'menu', 'select', 'combobox', 'hover-card', 'tooltip', 'autocomplete']
 const popupSel = (suffix = '') =>
@@ -1581,9 +1557,8 @@ const glass = (tone: string) => ({
   background: 'color-mix(in oklab, var(--tone) 11%, oklch(1 0 0 / 0.55))',
   backdropFilter: 'blur(14px) saturate(1.5)',
   boxShadow: [
-    'inset 0 1px 0 color-mix(in oklab, var(--tone) 18%, oklch(1 0 0 / 0.95))',
+    'inset 0 1px 0 oklch(1 0 0 / 0.95)',
     'inset 0 0 0 1px color-mix(in oklab, var(--tone) 24%, transparent)',
-    '0 10px 28px -14px color-mix(in oklab, var(--tone) 55%, transparent)',
   ].join(', '),
 })
 
@@ -1625,20 +1600,22 @@ const polish = {
   },
 
   // ── Panels: accordion and collapsible ──
+  // The panel stays mounted (see `keepMounted`), so ui-sdk's own exit runs: it holds the
+  // measured height in a variable and sets the ending style until the transition is done.
   '[data-slot="accordion-panel"], [data-slot="collapsible-panel"]': {
     padding: 0,
-    overflow: 'hidden',
-    transition: `height 240ms ${ease}, opacity 200ms ${ease}`,
-  },
-  '[data-slot="accordion-panel"]': { height: 'var(--accordion-panel-height)' },
-  '[data-slot="collapsible-panel"]': {
-    height: 'var(--collapsible-panel-height)',
     marginTop: 0,
     border: 0,
     background: 'transparent',
+    overflow: 'hidden',
+    transition: `height 260ms ${ease}, opacity 200ms ${ease}`,
   },
-  '[data-slot="accordion-panel"][data-starting-style], [data-slot="accordion-panel"][data-ending-style], [data-slot="collapsible-panel"][data-starting-style], [data-slot="collapsible-panel"][data-ending-style]':
+  '[data-slot="accordion-panel"]': { height: 'var(--accordion-panel-height)' },
+  '[data-slot="collapsible-panel"]': { height: 'var(--collapsible-panel-height)' },
+  '[data-slot="accordion-panel"]:is([data-starting-style], [data-ending-style]), [data-slot="collapsible-panel"]:is([data-starting-style], [data-ending-style])':
     { height: 0, opacity: 0 },
+  '[data-slot="accordion-panel"][data-closed]:not([data-ending-style]), [data-slot="collapsible-panel"][data-closed]:not([data-ending-style])':
+    { visibility: 'hidden' },
   '[data-slot="accordion-panel"] > *': { padding: '0 1rem 0.9rem' },
   '[data-slot="collapsible-panel"] > *': {
     margin: '0.6rem 0 0',
@@ -1679,20 +1656,24 @@ const polish = {
   // ── Dialogs and drawers ──
   [dialogSel()]: {
     transformOrigin: 'center',
-    transition: `opacity 200ms ${ease}, scale 200ms ${ease}`,
+    transition: `opacity 280ms ${soft}, scale 280ms ${soft}`,
   },
   [hidden
     .split(', ')
     .map((c) => dialogSel(c))
-    .join(', ')]: { opacity: 0, scale: 0.96 },
+    .join(', ')]: {
+    opacity: 0,
+    scale: 0.95,
+    transition: `opacity 160ms ease-in, scale 160ms ease-in`,
+  },
   [backdropSel()]: {
     backdropFilter: 'blur(3px)',
-    transition: `opacity 200ms ${ease}`,
+    transition: `opacity 280ms ${soft}`,
   },
   [hidden
     .split(', ')
     .map((c) => backdropSel(c))
-    .join(', ')]: { opacity: 0 },
+    .join(', ')]: { opacity: 0, transition: 'opacity 160ms ease-in' },
   '[data-slot="drawer-content"]': { transition: `opacity 240ms ${ease}, translate 240ms ${ease}` },
   '[data-slot="drawer-content"][data-closed], [data-slot="drawer-content"][data-starting-style], [data-slot="drawer-content"][data-ending-style]':
     { opacity: 1, translate: '100% 0' },
@@ -1753,7 +1734,7 @@ const polish = {
     background: 'var(--primary)',
     transition: `width 300ms ${ease}`,
   },
-  '[data-slot="avatar"]': { overflow: 'hidden' },
+  '[data-slot="avatar"]': { overflow: 'hidden', background: 'var(--raised-top)' },
   '[data-slot="avatar-fallback"]': { display: 'inline-flex' },
 
   // ── Pagination ──
@@ -1861,7 +1842,11 @@ const polish = {
 
   // ── Drag and drop: the gap shows where the item will land ──
   '[data-slot="sortable-item"]': { transition: 'background 150ms, box-shadow 150ms' },
-  '[data-slot="sortable-item"][data-dragging]': {
+  '[data-slot="sortable-item"][data-drag-preview]': {
+    boxShadow: 'var(--elev-float)',
+    cursor: 'grabbing',
+  },
+  '[data-slot="sortable-item"][data-moving]': {
     opacity: 1,
     color: 'transparent',
     background: 'var(--well)',
