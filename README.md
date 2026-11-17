@@ -24,11 +24,13 @@ An experiment: a ui-sdk adapter for Foldkit, styled with PandaCSS. Read
 [Kit guide](docs/kit.md) for what an app and a component author write, and [Adapter API](docs/adapter-api.md) for the design. `packages/ui` is the adapter; the demo form
 is in `apps/web/src/app/main.ts`.
 
-The demo runs without Cloudflare credentials:
+The demo runs without Cloudflare credentials. Alchemy serves the website Worker and the client together, as they ship:
 
 ```sh
-cd apps/web && pnpm dev
+pnpm dev   # http://localhost:5173
 ```
+
+Routes are Foldkit's own (`apps/web/src/app/route.ts`): `/`, `/form` and `/components/:id`. The Worker's assets use single-page-application fallback, so a deep link boots the app. `apps/web`'s own `pnpm dev` is plain Vite, with no Worker; use it only to debug the bundle.
 
 ## Apps and packages
 

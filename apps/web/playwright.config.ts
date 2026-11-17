@@ -10,12 +10,13 @@ export default defineConfig({
   timeout: 20_000,
   workers: 1,
   use: {
-    baseURL: 'http://localhost:5198',
+    baseURL: 'http://localhost:5173',
     launchOptions: executablePath === undefined ? {} : { executablePath },
   },
   webServer: {
-    command: 'pnpm codegen && pnpm exec vite --port 5198',
-    url: 'http://localhost:5198',
+    // The app runs the way it ships: Alchemy serves the Worker and the client together.
+    command: 'pnpm --dir ../.. dev',
+    url: 'http://localhost:5173',
     reuseExistingServer: true,
   },
 })
