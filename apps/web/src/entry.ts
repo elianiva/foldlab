@@ -27,7 +27,13 @@ const application = Runtime.makeApplication({
   resources: Layer.mergeAll(ApiRpc.layer, tracerLayer, ui.layer),
   container,
   crash: { report: reportCrash },
-  slow: { show: 'Always', onSlow: reportSlow },
+  slow: {
+    show: 'Always',
+    onSlow: reportSlow,
+    // A heavy preview (calendar, color picker) can take a frame to patch when
+    // it enters the overview. The view budget stays at 16ms.
+    thresholdOverrides: { Patch: 16 },
+  },
   devTools: { Message },
 })
 

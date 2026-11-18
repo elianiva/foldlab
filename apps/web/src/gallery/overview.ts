@@ -44,23 +44,56 @@ const bodyCls = css({
   },
   '& [data-slot="section-title"], & [data-slot="section-code"]': { display: 'none' },
   '& [data-slot="section-preview"]': { padding: 0, justifyContent: 'center' },
+  // A cell slated for the viewport shows a line until its live part mounts.
+  '&[data-loading]::before': {
+    content: '""',
+    width: '64%',
+    height: '0.8rem',
+    borderRadius: '4px',
+    background: 'linear-gradient(90deg, #e9ebf0 25%, #f4f5f8 50%, #e9ebf0 75%)',
+    backgroundSize: '200% 100%',
+    animation: 'fl-shimmer 1.4s ease-in-out infinite',
+  },
 })
 
-/** Every component in a grid, as Kumo's home page does: a title and the live part in each cell. */
-export const overviewPage = (ctx: Ctx, pages: ReadonlyArray<Page>): ReadonlyArray<Html> => {
+/**
+ * Every component in a grid, as Kumo's home page does. A cell renders its live
+ * part once the observer reports it near the viewport; until then the cell
+ * keeps its title and a skeleton, so the first paint does not build 100
+ * primitive instances at once.
+ */
+export const overviewPage = (
+  ctx: Ctx,
+  pages: ReadonlyArray<Page>,
+  shown: ReadonlySet<string>,
+  loading: ReadonlySet<string>,
+): ReadonlyArray<Html> => {
   const { h } = ctx
   return [
     h.div(
       [h.Class(gridCls), h.Attribute('data-slot', 'overview')],
       pages.map((page) =>
         h.div(
-          [h.Key(page.id), h.Class(cellCls), h.Attribute('data-slot', 'overview-cell')],
+          [
+            h.Key(page.id),
+            h.Class(cellCls),
+            h.Attribute('data-slot', 'overview-cell'),
+            h.Attribute('data-overview-cell', page.id),
+          ],
           [
             h.a(
               [h.Class(cellTitleCls), h.Href(pathOf(AppRoute.Component({ id: page.id })))],
               [page.title],
             ),
-            h.div([h.Class(bodyCls)], page.render(ctx).slice(0, 1)),
+            h.div(
+              [
+                h.Class(bodyCls),
+                ...(loading.has(page.id) && !shown.has(page.id)
+                  ? [h.Attribute('data-loading', '')]
+                  : []),
+              ],
+              shown.has(page.id) ? page.render(ctx).slice(0, 1) : [],
+            ),
           ],
         ),
       ),

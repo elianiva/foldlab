@@ -176,6 +176,10 @@ export const Model = Schema.Struct({
   channels: Strings,
   // ui-sdk state lives in the Model as plain data, next to the validation state.
   ui: kit.Model,
+  /** Overview cells whose live preview has loaded. The grid fills them in one per frame. */
+  overviewShown: Schema.Array(Schema.String),
+  /** Overview cells currently near the viewport. The live set follows this. */
+  overviewTarget: Schema.Array(Schema.String),
   // The same dialog, once more, from @foldkit/ui.
   dialogsVisible: Schema.Boolean,
   fkDialog: FkDialog.Model,
@@ -248,6 +252,8 @@ export const Message = defineMessageUnion({
   ClickedToast: { type: Schema.String },
   GotToast: { item: Toast.ToastItem },
   ChangedToasts: { ids: Schema.Array(Schema.String) },
+  OverviewCellsShown: { ids: Schema.Array(Schema.String) },
+  AdvancedOverview: {},
 })
 export type Message = typeof Message.Type
 
@@ -416,6 +422,8 @@ export const init = (flags: Flags, url: Url.Url) => ({
         ],
       }),
     },
+    overviewShown: [],
+    overviewTarget: [],
     dialogsVisible: true,
     fkDialog: FkDialog.init({ id: 'fk-settings', isAnimated: true }),
     submitted: false,
@@ -559,6 +567,19 @@ export const update = (model: Model, message: Message): Update.Return<Model, Mes
     ChangedToasts: ({ ids }) => ({
       model: { ...model, ui: { ...model.ui, toast: Toast.synced(model.ui.toast, ids) } },
     }),
+    OverviewCellsShown: ({ ids }) => ({
+      model: {
+        ...model,
+        overviewTarget: [...new Set(ids)],
+        overviewShown: model.overviewShown.filter((id) => ids.includes(id)),
+      },
+    }),
+    AdvancedOverview: () => {
+      const next = model.overviewTarget.find((id) => !model.overviewShown.includes(id))
+      return next === undefined
+        ? { model }
+        : { model: { ...model, overviewShown: [...model.overviewShown, next] } }
+    },
     ClickedCopy: ({ text }) => ({ model, commands: [CopyText({ text })] }),
     CompletedCopy: ({ text }) => ({
       model: { ...model, demo: { ...model.demo, copied: text } },
@@ -923,6 +944,64 @@ export const subscriptions = Subscription.make<Model, Message>()((entry) => ({
         ),
     },
   ),
+  overviewVisible: entry(
+    { on: Schema.Boolean },
+    {
+      modelToDependencies: (m) => ({ on: m.route._tag === 'Overview' }),
+      dependenciesToStream: ({ on }) => {
+        if (
+          !on ||
+          typeof IntersectionObserver === 'undefined' ||
+          typeof requestAnimationFrame === 'undefined'
+        ) {
+          return Stream.empty
+        }
+        return Stream.callback<Message>((queue) =>
+          Effect.acquireRelease(
+            Effect.sync(() => {
+              const visible = new Set<string>()
+              let last = ''
+              const observer = new IntersectionObserver(
+                (entries) => {
+                  for (const entry of entries) {
+                    const id = (entry.target as HTMLElement).dataset['overviewCell']
+                    if (id === undefined) continue
+                    if (entry.isIntersecting) visible.add(id)
+                    else visible.delete(id)
+                  }
+                  // Only the cells near the viewport stay live. Sending the whole
+                  // set (instead of adding to it) unmounts the ones left behind,
+                  // so a long scroll does not accumulate work.
+                  const ids = [...visible].sort()
+                  const signature = ids.join('\n')
+                  if (signature === last) return
+                  last = signature
+                  Queue.offerUnsafe(queue, Message.OverviewCellsShown({ ids }))
+                },
+                { rootMargin: '0px' },
+              )
+              const frame = requestAnimationFrame(() => {
+                for (const cell of document.querySelectorAll<HTMLElement>('[data-overview-cell]')) {
+                  observer.observe(cell)
+                }
+              })
+              return { observer, frame }
+            }),
+            (state) =>
+              Effect.sync(() => {
+                cancelAnimationFrame(state.frame)
+                state.observer.disconnect()
+              }),
+          ).pipe(Effect.andThen(Effect.never)),
+        )
+      },
+    },
+  ),
+  overviewFill: Subscription.animationFrameEntry({
+    isActive: (m) =>
+      m.route._tag === 'Overview' && m.overviewShown.length < m.overviewTarget.length,
+    toMessage: () => Message.AdvancedOverview(),
+  }),
 }))
 
 export const view = (model: Model, h: HtmlBuilder<Message>): Document => {
@@ -954,7 +1033,12 @@ export const view = (model: Model, h: HtmlBuilder<Message>): Document => {
       current: pathOf(model.route),
       title: 'Overview',
       description: 'Every component in the kit.',
-      content: overviewPage({ h, model, ui }, galleryPages),
+      content: overviewPage(
+        { h, model, ui },
+        galleryPages,
+        new Set(model.overviewShown),
+        new Set(model.overviewTarget),
+      ),
       wide: true,
     }),
     Form: () => ({

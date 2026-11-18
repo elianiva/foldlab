@@ -141,6 +141,22 @@ test('submit validates everything at once', () => {
   )
 })
 
+test('the overview fills one live cell per frame and drops cells that leave the viewport', () => {
+  const start = init({ anchorId: '' }, urlOf('/')).model
+  const targeted = update(start, Message.OverviewCellsShown({ ids: ['a', 'b', 'c'] })).model
+  expect(targeted.overviewTarget).toEqual(['a', 'b', 'c'])
+  expect(targeted.overviewShown).toEqual([])
+
+  const one = update(targeted, Message.AdvancedOverview()).model
+  expect(one.overviewShown).toEqual(['a'])
+  const two = update(one, Message.AdvancedOverview()).model
+  expect(two.overviewShown).toEqual(['a', 'b'])
+
+  const scrolled = update(two, Message.OverviewCellsShown({ ids: ['b', 'c'] })).model
+  expect(scrolled.overviewShown).toEqual(['b'])
+  expect(update(scrolled, Message.AdvancedOverview()).model.overviewShown).toEqual(['b', 'c'])
+})
+
 test('Combobox.visibleItems filters with the app, not the primitive', () => {
   const state = {
     ...Combobox.init({

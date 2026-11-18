@@ -153,10 +153,11 @@ export const shell = <M>(
           h.nav(
             [h.AriaLabel('Components')],
             props.groups.flatMap((group) => [
-              h.div([h.Class(groupCls)], [group.name]),
+              h.div([h.Key(`group-${group.name}`), h.Class(groupCls)], [group.name]),
               ...group.entries.map((entry) =>
                 h.a(
                   [
+                    h.Key(entry.href),
                     h.Class(navLinkCls),
                     h.Href(entry.href),
                     ...(entry.href === props.current ? [h.AriaCurrent('page')] : []),
