@@ -320,13 +320,10 @@ const base = {
   },
   '[data-slot="table"] tbody tr:last-child td': { borderBottom: 0 },
 
-  '[data-slot="meter"]': { display: 'flex', flexDirection: 'column', gap: '0.35rem' },
-  '[data-slot="meter-label"]': {
-    display: 'flex',
-    justifyContent: 'space-between',
-    fontSize: '0.85rem',
-  },
+  '[data-slot="meter-label"]': { fontSize: '0.85rem' },
+  '[data-slot="meter-value"]': { fontSize: '0.85rem', fontVariantNumeric: 'tabular-nums' },
   '[data-slot="meter-track"]': {
+    gridColumn: '1 / -1',
     height: '8px',
     borderRadius: '999px',
     background: '#e9ebf0',
@@ -632,7 +629,7 @@ const base = {
     color: 'var(--fl-muted)',
     fontWeight: 400,
   },
-  '[data-slot="accordion-trigger"][data-open]::after': { content: '"\\2212"' },
+  '[data-slot="accordion-trigger"][aria-expanded="true"]::after': { content: '"\\2212"' },
   '[data-slot="accordion-panel"]': { padding: '0 1rem 0.9rem', color: 'var(--fl-muted)' },
   '[data-slot="accordion-panel"] p': { margin: 0 },
 
@@ -821,7 +818,7 @@ const depth = {
     overflow: 'hidden',
   },
   '[data-slot="separator"]': { height: '1px', width: '100%', background: 'var(--hairline)' },
-  '[data-slot="separator"][data-vertical]': { width: '1px', height: '1.5rem' },
+  '[data-slot="separator"][data-orientation="vertical"]': { width: '1px', height: '1.5rem' },
   '[data-slot="scroll-area"]': {
     overflow: 'auto',
     width: '100%',
@@ -1276,8 +1273,21 @@ const kit = {
     fontWeight: 600,
   },
   '[data-slot="otp-input-slot"][data-active]': { outline: '2px solid var(--fl-accent)' },
-  '[data-slot="carousel"]': { position: 'relative', width: '100%', maxWidth: '28rem' },
-  '[data-slot="carousel-viewport"]': { overflow: 'hidden', borderRadius: '10px' },
+  '[data-slot="carousel"]': {
+    position: 'relative',
+    display: 'grid',
+    gridTemplateColumns: 'auto 1fr auto',
+    alignItems: 'center',
+    gap: '0.5rem',
+    width: '100%',
+  },
+  '[data-slot="carousel-viewport"]': {
+    gridColumn: '1 / -1',
+    overflow: 'hidden',
+    borderRadius: '10px',
+  },
+  '[data-slot="carousel-previous"]': { gridColumn: 1, gridRow: 2, justifySelf: 'start' },
+  '[data-slot="carousel-next"]': { gridColumn: 3, gridRow: 2, justifySelf: 'end' },
   '[data-slot="carousel-content"]': { display: 'flex' },
   '[data-slot="carousel-item"]': {
     flex: '0 0 100%',
@@ -1289,21 +1299,37 @@ const kit = {
   },
   '[data-slot="carousel-indicator-group"]': {
     display: 'flex',
+    gridColumn: 2,
+    gridRow: 2,
     justifyContent: 'center',
+    justifySelf: 'center',
     gap: '0.4rem',
-    marginTop: '0.6rem',
   },
   '[data-slot="carousel-indicator"]': {
-    width: '0.55rem',
-    height: '0.55rem',
+    display: 'inline-flex',
+    alignItems: 'center',
+    justifyContent: 'center',
+    width: '1.25rem',
+    height: '1.25rem',
     padding: 0,
     minWidth: 0,
+    border: 0,
     borderRadius: '50%',
-    background: 'var(--well)',
+    background: 'transparent',
+    boxShadow: 'none',
   },
-  '[data-slot="carousel-indicator"][data-active], [data-slot="carousel-indicator"][data-current]': {
-    background: 'var(--fl-accent)',
+  // The dot is smaller than the button, so the hit target stays comfortable.
+  '[data-slot="carousel-indicator"]::before': {
+    content: '""',
+    width: '0.5rem',
+    height: '0.5rem',
+    borderRadius: '50%',
+    background: 'var(--input)',
+    boxShadow: 'inset 0 0 0 1px var(--hairline)',
+    transition: 'background 150ms, scale 150ms',
   },
+  '[data-slot="carousel-indicator"][data-selected]::before, [data-slot="carousel-indicator"][aria-selected="true"]::before':
+    { background: 'var(--primary)', boxShadow: 'none', scale: '1.15' },
   '[data-slot="resizable"]': {
     display: 'flex',
     width: '100%',
@@ -1414,10 +1440,11 @@ const kit = {
     boxShadow: 'var(--elev-well)',
     color: 'var(--fl-muted)',
   },
-  '[data-slot="file-input-dropzone"][data-dragging], [data-slot="file-input-dropzone"][data-drag-over]':
+  '[data-slot="file-input-dropzone"][data-dragging], [data-slot="file-input-dropzone"][data-drag-accept]':
     {
       outline: '2px dashed var(--fl-accent)',
     },
+  '[data-slot="file-input-dropzone"][data-drag-reject]': { outline: '2px dashed var(--fl-danger)' },
   '[data-slot="file-input-input"]': { display: 'none' },
   '[data-slot="resizable-box"]': {
     width: '16rem',
@@ -1491,7 +1518,12 @@ const kit = {
     color: 'var(--fl-muted)',
   },
   '[data-slot="questionnaire"] h3, [data-slot="questionnaire"] p': { margin: 0 },
+  '[data-slot="questionnaire-actions"]': { display: 'flex', gap: '0.5rem' },
   '@keyframes fl-spin': { to: { rotate: '360deg' } },
+  '@keyframes fl-shimmer': {
+    from: { backgroundPosition: '200% 0' },
+    to: { backgroundPosition: '-200% 0' },
+  },
   '[data-slot="scroll-area"]': {
     position: 'relative',
     width: '16rem',
@@ -1631,7 +1663,10 @@ const polish = {
     mask: `${chevronIcon} center / contain no-repeat`,
     transition: `rotate 240ms ${ease}`,
   },
-  '[data-slot="accordion-trigger"][data-open]::after': { content: '""', rotate: '180deg' },
+  '[data-slot="accordion-trigger"][aria-expanded="true"]::after': {
+    content: '""',
+    rotate: '180deg',
+  },
 
   // ── Popups: a short fade with a small scale, from the anchor ──
   [popupSel()]: {
@@ -1703,10 +1738,21 @@ const polish = {
     { boxShadow: 'none' },
 
   // ── Gauges: ui-sdk renders the track and the indicator as parts ──
-  '[data-slot="meter"], [data-slot="progress"]': {
+  '[data-slot="progress"]': {
     display: 'flex',
     flexDirection: 'column',
     gap: '0.35rem',
+    height: 'auto',
+    background: 'transparent',
+    boxShadow: 'none',
+    overflow: 'visible',
+  },
+  // The meter puts its label and value on one row above the track.
+  '[data-slot="meter"]': {
+    display: 'grid',
+    gridTemplateColumns: '1fr auto',
+    alignItems: 'center',
+    gap: '0.35rem 0.5rem',
     height: 'auto',
     background: 'transparent',
     boxShadow: 'none',
@@ -1729,6 +1775,15 @@ const polish = {
   '[data-slot="avatar-fallback"]': { display: 'inline-flex' },
 
   // ── Pagination ──
+  '[data-slot="pagination-list"]': {
+    display: 'flex',
+    alignItems: 'center',
+    gap: '0.25rem',
+    margin: 0,
+    padding: 0,
+    listStyle: 'none',
+  },
+  '[data-slot="pagination-item"]': { display: 'inline-flex' },
   '[data-slot="pagination-link"], [data-slot="pagination-previous"], [data-slot="pagination-next"], [data-slot="pagination-first"], [data-slot="pagination-last"]':
     { minWidth: '2rem', padding: '0.4rem 0.6rem' },
   '[data-slot="pagination-link"][data-current], [data-slot="pagination-link"][aria-current="page"]':
@@ -1737,7 +1792,15 @@ const polish = {
       boxShadow: 'var(--elev-primary)',
       color: 'var(--primary-foreground)',
     },
-  '[data-slot="pagination-ellipsis"]': { padding: '0 0.4rem', color: 'var(--muted-foreground)' },
+  '[data-slot="pagination-ellipsis"]': {
+    display: 'inline-flex',
+    alignItems: 'center',
+    justifyContent: 'center',
+    minWidth: '2rem',
+    height: '2rem',
+    padding: '0 0.4rem',
+    color: 'var(--muted-foreground)',
+  },
 
   // ── Attachment ──
   '[data-slot="attachment"] > div': { flex: 1, minWidth: 0 },
@@ -1833,12 +1896,9 @@ const polish = {
 
   // ── Drag and drop: the gap shows where the item will land ──
   '[data-slot="sortable-item"]': { transition: 'background 150ms, box-shadow 150ms' },
-  '[data-slot="sortable-item"][data-drag-preview]': {
-    boxShadow: 'var(--elev-float)',
-    cursor: 'grabbing',
-  },
   '[data-slot="sortable-item"][data-moving]': {
     opacity: 1,
+    cursor: 'grabbing',
     color: 'transparent',
     background: 'var(--well)',
     boxShadow: 'var(--elev-well)',
@@ -1860,6 +1920,54 @@ const polish = {
     background: 'var(--accent)',
   },
   '[data-slot="menubar"] [data-slot="menu-trigger"]:active:not(:disabled)': { transform: 'none' },
+
+  // ── Segmented control: a sunk track with a raised pill under the chosen item ──
+  '[data-slot="segmented-control"]': {
+    position: 'relative',
+    display: 'inline-flex',
+    gap: '2px',
+    width: 'fit-content',
+    padding: '3px',
+    borderRadius: '10px',
+    background: 'var(--well)',
+    boxShadow: 'var(--elev-well)',
+  },
+  '[data-slot="segmented-control-indicator"]': {
+    position: 'absolute',
+    zIndex: 0,
+    top: 'var(--segmented-control-indicator-top)',
+    left: 'var(--segmented-control-indicator-left)',
+    width: 'var(--segmented-control-indicator-width)',
+    height: 'var(--segmented-control-indicator-height)',
+    borderRadius: '7px',
+    background: 'linear-gradient(var(--raised-top), var(--raised-bottom))',
+    boxShadow: 'var(--elev-raised)',
+    pointerEvents: 'none',
+    transition: `left 220ms ${ease}, top 220ms ${ease}, width 220ms ${ease}, height 220ms ${ease}`,
+  },
+  '[data-slot="segmented-control-item"]': {
+    position: 'relative',
+    zIndex: 1,
+    padding: '0.35rem 0.85rem',
+    border: 0,
+    borderRadius: '7px',
+    background: 'transparent',
+    boxShadow: 'none',
+    color: 'var(--muted-foreground)',
+    fontWeight: 500,
+    transition: 'color 150ms',
+  },
+  [hit('[data-slot="segmented-control-item"]:hover')]: {
+    background: 'transparent',
+    color: 'var(--foreground)',
+    filter: 'none',
+  },
+  '[data-slot="segmented-control-item"][data-checked]': {
+    background: 'transparent',
+    color: 'var(--foreground)',
+  },
+  '[data-slot="segmented-control-item"][data-disabled]': { opacity: 0.5, cursor: 'not-allowed' },
+  '[data-slot="segmented-control-input"]': { display: 'none' },
 
   '@media (prefers-reduced-motion: reduce)': {
     '[data-slot] ': { transitionDuration: '1ms !important' },

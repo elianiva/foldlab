@@ -37,7 +37,6 @@ export const leafStyles: Rules = {
   ...rows('[data-slot="date-picker-header"]'),
   '[data-slot="date-picker-presets"]': { ...row, flexWrap: 'wrap', paddingBottom: '0.5rem' },
   '[data-slot="date-picker-preset"][data-selected]': { fontWeight: 700 },
-  '[data-slot="calendar-day"][data-focused]': { outline: '2px solid var(--fl-accent)' },
   '[data-slot="date-picker-content"] [data-slot="calendar-grid"]': {
     display: 'flex',
     flexDirection: 'column',
@@ -188,9 +187,13 @@ export const leafStyles: Rules = {
     ...row,
     gap: '0.4rem',
     padding: '0.3rem 0.5rem',
-    paddingLeft: 'calc(0.5rem + (var(--tree-level, 1) - 1) * 1.1rem)',
+    paddingLeft: 'calc(0.5rem + (var(--tree-level, 1) - 1) * 2rem)',
     borderRadius: '6px',
     cursor: 'pointer',
+  },
+  // A leaf has no indicator, so it reserves that column to keep labels aligned.
+  '[data-slot="tree-label"]:not([data-branch])': {
+    paddingLeft: 'calc(1.9rem + (var(--tree-level, 1) - 1) * 2rem)',
   },
   '[data-slot="tree-label"]:hover, [data-slot="tree-item"]:focus-visible > [data-slot="tree-label"]':
     {
@@ -257,11 +260,10 @@ export const leafStyles: Rules = {
     left: 0,
     top: 0,
   },
-  '[data-slot="timeline-marker"][data-status="complete"], [data-slot="timeline-marker"][data-status="current"]':
-    {
-      background: 'linear-gradient(var(--primary-fill-top), var(--primary-fill-bottom))',
-      boxShadow: 'var(--elev-primary)',
-    },
+  '[data-slot="timeline-marker"][data-complete], [data-slot="timeline-marker"][data-current]': {
+    background: 'linear-gradient(var(--primary-fill-top), var(--primary-fill-bottom))',
+    boxShadow: 'var(--elev-primary)',
+  },
   '[data-slot="timeline-connector"]': {
     position: 'absolute',
     left: 'calc(0.4rem - 1px)',
@@ -311,7 +313,7 @@ export const leafStyles: Rules = {
   },
   '[data-slot="waterfall-column-header"]': {
     position: 'relative',
-    height: '1.6rem',
+    height: '2.2rem',
     color: 'var(--muted-foreground)',
     fontFamily: 'var(--mono)',
     fontSize: '0.7rem',
@@ -319,16 +321,30 @@ export const leafStyles: Rules = {
   '[data-slot="waterfall-axis"]': { position: 'relative', height: '100%' },
   '[data-slot="waterfall-tick"]': {
     position: 'absolute',
+    top: 0,
+    zIndex: 2,
     left: 'var(--waterfall-tick)',
     transform: 'translateX(-50%)',
+    paddingInline: '0.15rem',
+    background: 'var(--card)',
+    whiteSpace: 'nowrap',
   },
+  // Keep the first and last labels inside the track instead of half outside it.
+  '[data-slot="waterfall-tick"]:first-of-type': { transform: 'none' },
+  '[data-slot="waterfall-tick"]:last-of-type': { transform: 'translateX(-100%)' },
+  // Marks keep their label on a second line, below the ticks, so the two never overlap.
   '[data-slot="waterfall-mark"]': {
     position: 'absolute',
     top: 0,
     bottom: 0,
+    zIndex: 1,
     left: 'var(--waterfall-mark)',
+    display: 'flex',
+    alignItems: 'flex-end',
     borderLeft: '1px dashed var(--fl-danger)',
+    paddingRight: '0.25rem',
     paddingLeft: '0.25rem',
+    background: 'linear-gradient(to bottom, transparent 50%, var(--card) 50%)',
     color: 'var(--fl-danger)',
     whiteSpace: 'nowrap',
   },

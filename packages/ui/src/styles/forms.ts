@@ -109,36 +109,6 @@ export const formsStyles: Rules = {
     borderRadius: '4px',
   },
 
-  '[data-slot="field-set"]': {
-    ...field,
-    display: 'flex',
-    flexDirection: 'column',
-    gap: '0.5rem',
-    padding: '0.8rem 1rem',
-  },
-  '[data-slot="field-set"]:disabled': { opacity: 0.55 },
-  '[data-slot="field-legend"]': { fontWeight: 550, padding: '0 0.4rem' },
-
-  '[data-slot="file-input-list"]': {
-    display: 'flex',
-    flexDirection: 'column',
-    gap: '0.3rem',
-    margin: 0,
-    padding: 0,
-    listStyle: 'none',
-  },
-  '[data-slot="file-input-item"]': {
-    ...field,
-    display: 'flex',
-    alignItems: 'center',
-    gap: '0.5rem',
-    padding: '0.4rem 0.65rem',
-  },
-  '[data-slot="file-input-item"]:focus-visible': {
-    outline: '2px solid var(--fl-accent)',
-    outlineOffset: '1px',
-  },
-
   '[data-slot="toggle-icon"]': { display: 'inline-flex', alignItems: 'center' },
   '[data-slot="toast-action"]': { cursor: 'pointer' },
   '[data-slot="slider-value"]': { fontVariantNumeric: 'tabular-nums' },
