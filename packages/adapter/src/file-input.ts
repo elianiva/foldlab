@@ -25,7 +25,7 @@ const summarize = (value: unknown): State['files'] =>
     ? value.flatMap((file) => (file instanceof File ? [{ name: file.name, size: file.size }] : []))
     : []
 
-type Slot = 'root' | 'input' | 'trigger' | 'dropzone' | 'list' | 'item'
+type Slot = 'root' | 'input' | 'trigger' | 'dropzone'
 
 export const component = defineComponent<State, Slot>({
   name: 'file-input',
@@ -37,7 +37,7 @@ export const component = defineComponent<State, Slot>({
   callbacks: {},
   completions: { onValueChange: 'files' },
   fold: (state, snapshot) => ({ ...state, files: summarize(snapshot['files']) }),
-  tags: { root: 'div', input: 'input', trigger: 'button', dropzone: 'div', list: 'ul', item: 'li' },
+  tags: { root: 'div', input: 'input', trigger: 'button', dropzone: 'div' },
   bound: ['root', 'input', 'trigger', 'dropzone'],
 })
 

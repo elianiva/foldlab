@@ -35,7 +35,7 @@ export const component = defineComponent<State, Slot>({
     value: typeof snapshot['value'] === 'string' ? snapshot['value'] : '',
   }),
   tags: { root: 'div', item: 'button', indicator: 'span', input: 'input' },
-  bound: ['root', 'item', 'input'],
+  bound: ['root', 'item', 'indicator', 'input'],
 })
 
 export const parts = makeParts(component)
