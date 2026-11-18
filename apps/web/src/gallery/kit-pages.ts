@@ -14,6 +14,7 @@ import {
   OtpInput,
   Resizable,
   ScrollArea,
+  SegmentedControl,
   Toggle,
 } from '@foldlab/adapter'
 import { css } from '../../styled-system/css'
@@ -140,7 +141,7 @@ export const kitPages: ReadonlyArray<Page> = [
           [
             l.root(
               {},
-              [],
+              [h.AriaLabel('Options')],
               items.map(([value, text]) => l.item({ value, label: text }, [], [text])),
             ),
             h.p([], [`Selected: ${model.ui.listbox.value.join(', ') || 'none'}`]),
@@ -236,7 +237,7 @@ export const kitPages: ReadonlyArray<Page> = [
           [
             c.root(
               {},
-              [],
+              [h.AriaLabel('Example carousel')],
               [
                 c.viewport(
                   {},
@@ -254,7 +255,9 @@ export const kitPages: ReadonlyArray<Page> = [
                 c['indicator-group'](
                   {},
                   [],
-                  ids.map((id, i) => c.indicator({ page: i + 1, id }, [], [])),
+                  ids.map((id, i) =>
+                    c.indicator({ page: i + 1, id }, [h.AriaLabel(`Go to slide ${id}`)], []),
+                  ),
                 ),
               ],
             ),
@@ -407,6 +410,38 @@ export const kitPages: ReadonlyArray<Page> = [
     },
   },
   {
+    id: 'segmented-control',
+    title: 'Segmented Control',
+    description: 'Choose one option from a short, visible set.',
+    render: ({ h, model, ui }) => {
+      const s = SegmentedControl.parts(model.ui.segmented, h, ui)
+      const items = [
+        ['day', 'Day'],
+        ['week', 'Week'],
+        ['month', 'Month'],
+      ] as const
+      return [
+        sectionOf(
+          h,
+          'Basic',
+          [
+            s.root(
+              {},
+              [h.AriaLabel('Range')],
+              [
+                s.indicator({}, [], []),
+                ...items.map(([value, label]) => s.item({ value }, [], [label])),
+              ],
+            ),
+            h.p([], [`Selected: ${model.ui.segmented.value}`]),
+          ],
+          's.root({}, [], [s.indicator({}, [], []), ...items.map(([value, label]) => s.item({ value }, [], [label]))])',
+          stacked,
+        ),
+      ]
+    },
+  },
+  {
     id: 'toast',
     title: 'Toast',
     description: 'Short messages that leave on their own. Hover or focus pauses the timer.',
@@ -479,10 +514,14 @@ export const kitPages: ReadonlyArray<Page> = [
                 f.dropzone({}, [], ['Drop files here, or ', f.trigger({}, [], ['browse'])]),
               ],
             ),
-            h.ul(
-              [],
-              model.ui.files.files.map((file) => h.li([], [`${file.name} (${file.size} bytes)`])),
-            ),
+            model.ui.files.files.length === 0
+              ? h.p([], ['No files yet.'])
+              : h.ul(
+                  [],
+                  model.ui.files.files.map((file) =>
+                    h.li([], [`${file.name} (${file.size} bytes)`]),
+                  ),
+                ),
           ],
           'f.root({}, [], [f.input({}, [], []), f.dropzone({}, [], [f.trigger({}, [], ["browse"])])])',
           stacked,

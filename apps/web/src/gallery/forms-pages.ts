@@ -3,7 +3,6 @@ import {
   Checkbox,
   DateInput,
   Field,
-  FileInput,
   Input,
   joinField,
   Label,
@@ -37,7 +36,7 @@ const dump = (h: HtmlBuilder<Message>, pairs: ReadonlyArray<Pair>): Html =>
 
 export const formsPages: ReadonlyArray<Page> = [
   {
-    id: 'button',
+    id: 'button-ui',
     title: 'Button (ui-sdk)',
     description:
       'A button on the ui-sdk primitive. Presses are Foldkit events; the part binds nothing.',
@@ -55,7 +54,7 @@ export const formsPages: ReadonlyArray<Page> = [
     },
   },
   {
-    id: 'label',
+    id: 'label-ui',
     title: 'Label (ui-sdk)',
     description: 'A native label that names a control.',
     render: ({ h, ui }) => {
@@ -75,7 +74,7 @@ export const formsPages: ReadonlyArray<Page> = [
     },
   },
   {
-    id: 'input',
+    id: 'input-ui',
     title: 'Input (ui-sdk)',
     description:
       'A text input whose value is in the Model. Typing is Foldkit’s; inside a Field it takes the label, description and error ids.',
@@ -114,7 +113,7 @@ export const formsPages: ReadonlyArray<Page> = [
     },
   },
   {
-    id: 'textarea',
+    id: 'textarea-ui',
     title: 'Textarea (ui-sdk)',
     description: 'A multi-line text control. It grows with its text through CSS.',
     render: ({ h, model, ui }) => {
@@ -439,35 +438,6 @@ export const formsPages: ReadonlyArray<Page> = [
           'Enabled and disabled',
           [body(set), body(off)],
           'p.set({}, [], [p.legend({}, [], [...]), ...])',
-          stacked,
-        ),
-      ]
-    },
-  },
-  {
-    id: 'file-list',
-    title: 'File List',
-    description:
-      'The list and items for the files a File Input holds. The Model keeps names and sizes.',
-    render: ({ h, model, ui }) => {
-      const f = FileInput.parts(model.ui.files, h, ui)
-      const files = model.ui.files.files
-      return [
-        sectionOf(
-          h,
-          'Items',
-          [
-            f.list(
-              {},
-              [],
-              files.length === 0
-                ? [h.li([], ['Drop files on the File Drop page to see them here.'])]
-                : files.map((file) =>
-                    f.item({ value: file.name }, [], [`${file.name} (${file.size} bytes)`]),
-                  ),
-            ),
-          ],
-          'f.list({}, [], files.map(file => f.item({ value: file.name }, [], [file.name])))',
           stacked,
         ),
       ]

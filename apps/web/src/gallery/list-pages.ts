@@ -73,7 +73,7 @@ export const listPages: ReadonlyArray<Page> = [
         sectionOf(
           h,
           'Listbox',
-          [l.root({}, [], listItems(l, groupedEntries))],
+          [l.root({}, [h.AriaLabel('Regions')], listItems(l, groupedEntries))],
           'l.root({}, [], listItems(l, entries))',
           stacked,
         ),
@@ -85,7 +85,7 @@ export const listPages: ReadonlyArray<Page> = [
               {},
               [],
               [
-                c.input({}, [h.Placeholder('Search regions')], []),
+                c.input({}, [h.AriaLabel('Search regions'), h.Placeholder('Search regions')], []),
                 c.content(
                   {},
                   [],

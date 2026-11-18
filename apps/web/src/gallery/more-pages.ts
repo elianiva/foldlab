@@ -198,7 +198,7 @@ const commandPage = ({ h, model, ui }: Ctx): ReadonlyArray<Html> => {
           {},
           [],
           [
-            c.input({}, [h.Placeholder('Type a command')], []),
+            c.input({}, [h.AriaLabel('Search commands'), h.Placeholder('Type a command')], []),
             c.list(
               {},
               [],

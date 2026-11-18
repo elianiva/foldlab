@@ -151,7 +151,7 @@ export const nativePages: ReadonlyArray<Page> = [
                 h.h3([], [title]),
                 h.p([], [body]),
                 h.div(
-                  [h.Class('row')],
+                  [h.Attribute('data-slot', 'questionnaire-actions')],
                   [
                     h.button(
                       [

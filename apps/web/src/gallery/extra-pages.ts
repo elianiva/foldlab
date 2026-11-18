@@ -1,8 +1,11 @@
 // Pages for the remaining behavior-free elements from foldcn.
 import { Avatar, Progress, Separator } from '@foldlab/adapter'
 import { Elements as E } from '@foldlab/ui'
+import { css } from '../../styled-system/css'
 import { sectionOf, stacked } from './layout.ts'
 import type { Page } from './types.ts'
+
+const sideBySide = css({ display: 'flex', alignItems: 'center', gap: '0.75rem' })
 
 export const extraPages: ReadonlyArray<Page> = [
   {
@@ -285,12 +288,33 @@ export const extraPages: ReadonlyArray<Page> = [
     description: 'A divider.',
     render: ({ h, model, ui }) => {
       const sep = Separator.parts(model.ui.separator, h, ui)
+      const vertical = Separator.parts(
+        Separator.init({ key: 'separator-vertical', vertical: true }),
+        h,
+        ui,
+      )
       return [
         sectionOf(
           h,
           'Horizontal',
           [E.text(h, 'body', ['Above']), sep.root({}, [], []), E.text(h, 'body', ['Below'])],
           'Separator.parts(state, h, ui).root({}, [], [])',
+          stacked,
+        ),
+        sectionOf(
+          h,
+          'Vertical',
+          [
+            h.div(
+              [h.Class(sideBySide)],
+              [
+                E.text(h, 'body', ['Left']),
+                vertical.root({}, [], []),
+                E.text(h, 'body', ['Right']),
+              ],
+            ),
+          ],
+          "Separator.init({ key: 'separator-vertical', vertical: true })",
           stacked,
         ),
       ]

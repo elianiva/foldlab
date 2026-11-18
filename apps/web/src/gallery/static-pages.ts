@@ -2,17 +2,10 @@
 // call that produced it.
 import { Meter, Pagination } from '@foldlab/adapter'
 import { Elements as E } from '@foldlab/ui'
-import { css } from '../../styled-system/css'
 import { Message } from '../app/main.ts'
 import { sectionOf, stacked } from './layout.ts'
 import type { Page } from './types.ts'
 
-const meterHeaderCls = css({
-  display: 'flex',
-  justifyContent: 'space-between',
-  fontSize: '0.85rem',
-})
-const pagerCls = css({ display: 'flex', gap: '0.25rem', margin: 0, padding: 0, listStyle: 'none' })
 const code = (...lines: ReadonlyArray<string>) => lines.join('\n')
 
 export const staticPages: ReadonlyArray<Page> = [
@@ -264,10 +257,8 @@ export const staticPages: ReadonlyArray<Page> = [
           {},
           [h.AriaLabel(label)],
           [
-            h.div(
-              [h.Class(meterHeaderCls)],
-              [m.label({}, [], [label]), m.value({}, [], [`${percent}%`])],
-            ),
+            m.label({}, [], [label]),
+            m.value({}, [], [`${percent}%`]),
             m.track({}, [], [m.indicator({}, [], [])]),
           ],
         )
@@ -304,7 +295,7 @@ export const staticPages: ReadonlyArray<Page> = [
               [
                 pg.list(
                   {},
-                  [h.Class(pagerCls)],
+                  [],
                   [
                     pg.item({}, [], [pg.previous({}, [], ['\u2039'])]),
                     ...items.map((entry, index) =>
