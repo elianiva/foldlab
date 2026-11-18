@@ -25,6 +25,7 @@ import type { Message } from '../app/main.ts'
 import { sectionOf, stacked } from './layout.ts'
 import type { Page } from './types.ts'
 
+const columnCls = css({ display: 'flex', flexDirection: 'column', gap: '0.5rem' })
 const rowCls = css({ display: 'inline-flex', alignItems: 'center', gap: '0.55rem' })
 
 const choice = (h: HtmlBuilder<Message>, control: Html, text: string): Html =>
@@ -423,8 +424,13 @@ export const formsPages: ReadonlyArray<Page> = [
           [
             p.legend({}, [], ['Notifications']),
             p.description({}, [], ['How we reach you.']),
-            choice(h, h.input([h.Type('checkbox')]), 'Email'),
-            choice(h, h.input([h.Type('checkbox')]), 'SMS'),
+            h.div(
+              [h.Class(columnCls)],
+              [
+                choice(h, h.input([h.Type('checkbox')]), 'Email'),
+                choice(h, h.input([h.Type('checkbox')]), 'SMS'),
+              ],
+            ),
           ],
         )
       return [

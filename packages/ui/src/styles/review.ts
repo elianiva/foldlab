@@ -2,24 +2,60 @@ import type { Rules } from './rules.ts'
 
 const ease = 'cubic-bezier(0.23, 1, 0.32, 1)'
 const trigger = 'button[aria-haspopup]'
+const choiceSlots = ['checkbox', 'radio', 'switch']
+const choices = choiceSlots.map((n) => `[data-slot="${n}"]`).join(', ')
+const onChoice = (suffix: string) =>
+  choiceSlots.map((n) => `[data-slot="${n}"]${suffix}`).join(', ')
+const live = ':not([disabled]):not([aria-disabled="true"])'
+const popupList = [
+  'popover',
+  'menu',
+  'select',
+  'combobox',
+  'autocomplete',
+  'tooltip',
+  'hover-card',
+  'navigation-menu',
+]
+const popups = popupList.map((n) => `[data-slot="${n}-content"]`).join(', ')
+const popupsStart = popupList
+  .map((n) => `[data-slot="${n}-content"][data-starting-style]`)
+  .join(', ')
+const popupsEnd = popupList
+  .map(
+    (n) => `[data-slot="${n}-content"][data-ending-style], [data-slot="${n}-content"][data-closed]`,
+  )
+  .join(', ')
 const pressed = '[data-slot="toggle-group"] [data-slot="toggle"]'
 
 /** Fixes from review: dropdown triggers, toasts that stack, grouped controls, handles, segments. */
 export const reviewStyles: Rules = {
-  // A trigger that opens a popup has no press-down; while open it sits sunk, like a held key.
-  [`${trigger}:active:not(:disabled)`]: { transform: 'none' },
+  // A trigger that opens a popup has no press-down; while open it keeps its face and gains a ring.
+  [`${trigger}:active:not(:disabled)`]: { transform: 'none', filter: 'brightness(0.97)' },
   [`${trigger}[aria-expanded="true"]`]: {
-    background: 'var(--well)',
-    boxShadow: 'var(--elev-well)',
     filter: 'none',
+    boxShadow: 'var(--elev-raised), 0 0 0 3px color-mix(in oklab, var(--ring) 35%, transparent)',
   },
-  '[data-slot="switch"]:hover:not([data-checked])': {
-    background: 'var(--well)',
-    filter: 'brightness(0.97)',
+  // Checkbox, radio and switch: hover adds a soft halo and nothing else, so no gradient swap.
+  [onChoice(`:not([data-checked]):hover${live}`)]: {
+    filter: 'none',
+    boxShadow: 'var(--elev-well), 0 0 0 4px color-mix(in oklab, var(--foreground) 7%, transparent)',
   },
-  '[data-slot="switch"][data-checked]:hover': {
+  [onChoice(`[data-checked]:hover${live}`)]: {
+    filter: 'none',
     background: 'linear-gradient(var(--primary-fill-top), var(--primary-fill-bottom))',
-    filter: 'brightness(1.08)',
+    boxShadow:
+      'var(--elev-primary), 0 0 0 4px color-mix(in oklab, var(--primary) 18%, transparent)',
+  },
+  [onChoice(':active:not([disabled])')]: { transform: 'none' },
+  [choices]: {
+    transition: `background 150ms, box-shadow 200ms ${ease}`,
+  },
+  '[data-slot="radio-group"], [data-slot="checkbox-group"]': {
+    display: 'flex',
+    flexWrap: 'wrap',
+    alignItems: 'center',
+    gap: '0.6rem 1.2rem',
   },
   'label > input[type="checkbox"], label > input[type="radio"]': {
     width: '1.1rem',
@@ -36,9 +72,7 @@ export const reviewStyles: Rules = {
     borderRadius: 'var(--fl-radius)',
     background: 'var(--card)',
     boxShadow: 'var(--elev-card)',
-    display: 'flex',
-    flexDirection: 'column',
-    gap: '0.6rem',
+    display: 'block',
     width: '100%',
   },
   '[data-slot="field-legend"]': {
@@ -51,7 +85,13 @@ export const reviewStyles: Rules = {
     textTransform: 'uppercase',
     color: 'var(--muted-foreground)',
   },
-  '[data-slot="field-set"] > legend': { float: 'none', width: 'auto' },
+  '[data-slot="field-set"] > legend': {
+    float: 'left',
+    width: '100%',
+    marginBottom: '0.75rem',
+  },
+  '[data-slot="field-set"] > legend + *': { clear: 'both' },
+  '[data-slot="field-set"] > :not(legend) + *': { marginTop: '0.6rem' },
 
   // Menubar: a quiet bar of text triggers.
   '[data-slot="menubar"]': {
@@ -105,9 +145,10 @@ export const reviewStyles: Rules = {
     background: 'var(--well)',
     boxShadow: 'var(--elev-well)',
   },
-  '[data-slot="number-input-group"]:focus-within, [data-slot="password-input"]:focus-within': {
-    boxShadow: 'var(--elev-well), 0 0 0 3px color-mix(in oklab, var(--ring) 45%, transparent)',
-  },
+  '[data-slot="number-input-group"]:has([data-slot$="-control"]:focus), [data-slot="password-input"]:has([data-slot$="-control"]:focus)':
+    {
+      boxShadow: 'var(--elev-well), 0 0 0 3px color-mix(in oklab, var(--ring) 45%, transparent)',
+    },
   '[data-slot="number-input-control"], [data-slot="password-input-control"]': {
     background: 'transparent',
     boxShadow: 'none',
@@ -121,6 +162,7 @@ export const reviewStyles: Rules = {
       background: 'transparent',
       boxShadow: 'none',
       border: 0,
+      outline: 0,
       borderRadius: '7px',
       margin: '3px',
       padding: '0.25rem 0.6rem',
@@ -128,6 +170,11 @@ export const reviewStyles: Rules = {
     },
   [`[data-slot="number-input-increment"]:hover, [data-slot="number-input-decrement"]:hover, [data-slot="password-input-toggle"]:hover`]:
     { background: 'var(--accent)', color: 'var(--foreground)', filter: 'none' },
+  [`[data-slot="number-input-increment"]:active, [data-slot="number-input-decrement"]:active, [data-slot="password-input-toggle"]:active`]:
+    {
+      transform: 'none',
+      background: 'color-mix(in oklab, var(--foreground) 12%, transparent)',
+    },
 
   // Resizable: a hairline that thickens into a grip while hovered or dragged.
   '[data-slot="resizable"]': { gap: 0, boxShadow: 'none', overflow: 'visible' },
@@ -138,30 +185,43 @@ export const reviewStyles: Rules = {
   },
   '[data-slot="resizable-handle"]': {
     position: 'relative',
-    flex: '0 0 14px',
-    minWidth: '14px',
+    flex: '0 0 16px',
+    minWidth: '16px',
     background: 'transparent',
+    outline: 0,
+  },
+  '[data-slot="resizable-handle"]::before': {
+    content: '""',
+    position: 'absolute',
+    top: 0,
+    bottom: 0,
+    left: '50%',
+    width: '1px',
+    translate: '-50% 0',
+    background: 'var(--hairline)',
+    transition: `background 150ms, width 150ms`,
   },
   '[data-slot="resizable-handle"]::after': {
     content: '""',
     position: 'absolute',
     top: '50%',
     left: '50%',
-    width: '4px',
-    height: '2.2rem',
+    width: '8px',
+    height: '1.4rem',
     translate: '-50% -50%',
-    borderRadius: '999px',
-    background: 'color-mix(in oklab, var(--foreground) 22%, transparent)',
-    transition: `height 200ms ${ease}, background 150ms`,
+    borderRadius: '4px',
+    background: 'linear-gradient(var(--raised-top), var(--raised-bottom))',
+    boxShadow: 'var(--elev-raised)',
+    transition: `scale 160ms ${ease}`,
   },
-  '[data-slot="resizable-handle"]:hover::after, [data-slot="resizable-handle"][data-dragging]::after, [data-slot="resizable-handle"]:focus-visible::after':
-    { height: '3.4rem', background: 'var(--primary)' },
-  '[data-slot="resizable-handle"][data-dragging], [data-slot="resizable-handle"]:hover': {
-    background: 'transparent',
-  },
+  '[data-slot="resizable-handle"]:hover::before, [data-slot="resizable-handle"][data-dragging]::before, [data-slot="resizable-handle"]:focus-visible::before':
+    { background: 'var(--primary)', width: '2px' },
+  '[data-slot="resizable-handle"]:hover::after, [data-slot="resizable-handle"][data-dragging]::after':
+    { scale: '1.1' },
 
   // Segmented inputs: each segment is a small well that lights when focused.
   '[data-slot="time-input"], [data-slot="date-input"]': {
+    maxWidth: '100%',
     gap: '0.15rem',
     padding: '0.3rem 0.5rem',
     background: 'var(--well)',
@@ -188,6 +248,7 @@ export const reviewStyles: Rules = {
     color: 'var(--primary-foreground)',
   },
   'input[data-slot="time-input-segment"][data-type="dayPeriod"]': { width: '2.6ch' },
+  'input[data-slot="date-input-segment"][data-type="year"]': { width: '4.2ch' },
   'span[data-slot="time-input-segment"], span[data-slot="date-input-segment"]': {
     color: 'var(--muted-foreground)',
     padding: 0,
@@ -226,7 +287,7 @@ export const reviewStyles: Rules = {
     content: '""',
     position: 'absolute',
     inset: 0,
-    background: 'var(--card)',
+    background: 'inherit',
     opacity: 'var(--behind)',
     pointerEvents: 'none',
     transition: 'opacity 400ms ease',
@@ -254,4 +315,150 @@ export const reviewStyles: Rules = {
   '@media (prefers-reduced-motion: reduce)': {
     '[data-slot="toast"]': { transitionProperty: 'opacity' },
   },
+
+  // Navigation menu: quiet text items; the indicator slides under the hovered or open one.
+  '[data-slot="navigation-menu-list"]': {
+    gap: '0.15rem',
+    padding: 0,
+    boxShadow: 'none',
+    background: 'transparent',
+  },
+  '[data-slot="navigation-menu-trigger"], [data-slot="navigation-menu-link"]': {
+    display: 'inline-flex',
+    alignItems: 'center',
+    gap: '0.3rem',
+    padding: '0.4rem 0.75rem',
+    borderRadius: '8px',
+    border: 0,
+    background: 'transparent',
+    boxShadow: 'none',
+    color: 'var(--muted-foreground)',
+    fontSize: '13px',
+    fontWeight: 500,
+    textDecoration: 'none',
+    cursor: 'pointer',
+    transition: `color 150ms, background 150ms`,
+  },
+  '[data-slot="navigation-menu-trigger"]:hover, [data-slot="navigation-menu-link"]:hover, [data-slot="navigation-menu-trigger"][aria-expanded="true"]':
+    {
+      background: 'var(--accent)',
+      color: 'var(--foreground)',
+      filter: 'none',
+      boxShadow: 'none',
+    },
+  '[data-slot="navigation-menu-trigger"]::after': {
+    content: '""',
+    width: '0.4rem',
+    height: '0.4rem',
+    borderRight: '1.5px solid currentColor',
+    borderBottom: '1.5px solid currentColor',
+    rotate: '45deg',
+    translate: '0 -2px',
+    transition: `rotate 200ms ${ease}`,
+  },
+  '[data-slot="navigation-menu-trigger"][aria-expanded="true"]::after': { rotate: '225deg' },
+  '[data-slot="navigation-menu-indicator"]': { display: 'none' },
+
+  // Native select: room for the text and a drawn chevron.
+  select: {
+    appearance: 'none',
+    padding: '0.5rem 2.1rem 0.5rem 0.8rem',
+    backgroundImage:
+      "url(\"data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' width='12' height='12' viewBox='0 0 12 12' fill='none' stroke='%238a919e' stroke-width='1.6' stroke-linecap='round' stroke-linejoin='round'%3E%3Cpath d='M3 4.5 6 7.5 9 4.5'/%3E%3C/svg%3E\")",
+    backgroundRepeat: 'no-repeat',
+    backgroundPosition: 'right 0.7rem center',
+    cursor: 'pointer',
+  },
+
+  // Select trigger: a well like the inputs, with a drawn chevron.
+  '[data-slot="select"]': { display: 'block', width: '100%' },
+  '[data-slot="select-trigger"]': {
+    display: 'flex',
+    alignItems: 'center',
+    width: '100%',
+    minWidth: 0,
+    padding: '0.5rem 0.8rem',
+    background: 'var(--well)',
+    boxShadow: 'var(--elev-well)',
+    fontWeight: 400,
+    color: 'var(--foreground)',
+    textAlign: 'left',
+  },
+  '[data-slot="select-trigger"]::after': {
+    content: '""',
+    flex: 'none',
+    marginLeft: 'auto',
+    width: '0.45rem',
+    height: '0.45rem',
+    borderRight: '1.5px solid var(--muted-foreground)',
+    borderBottom: '1.5px solid var(--muted-foreground)',
+    rotate: '45deg',
+    translate: '0 -2px',
+    transition: `rotate 200ms ${ease}`,
+  },
+  '[data-slot="select-trigger"][aria-expanded="true"]::after': { rotate: '225deg' },
+  '[data-slot="select-trigger"][aria-expanded="true"]': {
+    background: 'var(--well)',
+    boxShadow: 'var(--elev-well), 0 0 0 3px color-mix(in oklab, var(--ring) 35%, transparent)',
+  },
+  '[data-slot="select-trigger"]:hover:not([disabled])': {
+    background: 'var(--well)',
+    filter: 'brightness(0.98)',
+  },
+
+  // Tabs: a sunk track with a raised pill that slides to the selected tab.
+  '[data-slot="tabs-list"]': {
+    display: 'inline-flex',
+    position: 'relative',
+    gap: '2px',
+    padding: '3px',
+    borderRadius: '10px',
+    background: 'var(--well)',
+    boxShadow: 'var(--elev-well)',
+    borderBottom: 0,
+  },
+  '[data-slot="tabs-tab"]': {
+    position: 'relative',
+    zIndex: 1,
+    padding: '0.35rem 0.85rem',
+    border: 0,
+    borderRadius: '7px',
+    background: 'transparent',
+    boxShadow: 'none',
+    color: 'var(--muted-foreground)',
+    transition: 'color 150ms',
+  },
+  '[data-slot="tabs-tab"]:hover:not([data-selected])': {
+    background: 'transparent',
+    color: 'var(--foreground)',
+    filter: 'none',
+  },
+  '[data-slot="tabs-tab"][data-selected]': {
+    color: 'var(--foreground)',
+    borderBottomColor: 'transparent',
+    background: 'transparent',
+  },
+  '[data-slot="tabs-indicator"]': {
+    zIndex: 0,
+    border: 0,
+    borderRadius: '7px',
+    background: 'linear-gradient(var(--raised-top), var(--raised-bottom))',
+    boxShadow: 'var(--elev-raised)',
+    transitionDuration: '320ms',
+    transitionTimingFunction: ease,
+  },
+  '[data-slot="tabs-panel"][data-starting-style]': { opacity: 0, translate: '0 4px' },
+  '[data-slot="tabs-panel"]': {
+    transition: `opacity 220ms ease, translate 260ms ${ease}`,
+    '@starting-style': { opacity: 0, translate: '0 4px' },
+  },
+
+  // Popups: grow from the trigger with a short fade; leave faster than they arrive.
+  [popups]: {
+    transformOrigin: 'var(--transform-origin, center)',
+    transition: `opacity 160ms ease, scale 200ms ${ease}`,
+    scale: 1,
+  },
+  [popupsStart]: { opacity: 0, scale: '0.96' },
+  [popupsEnd]: { opacity: 0, scale: '0.98', transitionDuration: '110ms' },
 }

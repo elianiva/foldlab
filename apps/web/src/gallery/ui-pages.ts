@@ -122,7 +122,10 @@ export const uiPages: ReadonlyArray<Page> = [
                 t.list(
                   {},
                   [],
-                  items.map(([value, text]) => t.tab({ value }, [], [text])),
+                  [
+                    t.indicator({}, [], []),
+                    ...items.map(([value, text]) => t.tab({ value }, [], [text])),
+                  ],
                 ),
                 ...items.map(([value, , body]) => t.panel({ value }, [], [h.p([], [body])])),
               ],

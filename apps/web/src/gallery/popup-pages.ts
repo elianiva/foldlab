@@ -97,10 +97,7 @@ export const popupPages: ReadonlyArray<Page> = [
                 s.trigger(
                   {},
                   [],
-                  [
-                    state.value === '' ? 'Choose a region' : Select.labelOf(state, state.value),
-                    ' ▾',
-                  ],
+                  [state.value === '' ? 'Choose a region' : Select.labelOf(state, state.value)],
                 ),
                 s.content(
                   {},
