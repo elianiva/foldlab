@@ -4,6 +4,9 @@ import { kitPages } from './kit-pages.ts'
 import { morePages } from './more-pages.ts'
 import { nativePages } from './native-pages.ts'
 import { popupPages } from './popup-pages.ts'
+import { formsPages } from './forms-pages.ts'
+import { leafPages } from './leaf-pages.ts'
+import { listPages } from './list-pages.ts'
 import { uiPages } from './ui-pages.ts'
 import type { Page } from './types.ts'
 
@@ -16,4 +19,7 @@ export const galleryPages: ReadonlyArray<Page> = [
   ...kitPages,
   ...nativePages,
   ...extraPages,
+  ...listPages,
+  ...formsPages,
+  ...leafPages,
 ].toSorted((a, b) => a.title.localeCompare(b.title))

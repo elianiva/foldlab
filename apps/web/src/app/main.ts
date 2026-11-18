@@ -1,4 +1,5 @@
 import { Effect, Queue, Schema, Stream } from 'effect'
+import { formsInit, formsKit } from './forms-kit.ts'
 import { Command, FieldValidation, Navigation, Subscription, Update, Url } from 'foldkit'
 import { Dialog as FkDialog } from '@foldkit/ui'
 import type { Document, Html, HtmlBuilder } from 'foldkit/html'
@@ -48,11 +49,26 @@ import {
   UiRegistry,
   type PartsConfig,
   stamp,
+  DatePicker,
+  ColorPicker,
+  ImageCropper,
+  Tree,
+  Timeline,
+  Waterfall,
+  TriggerMenu,
 } from '@foldlab/adapter'
 import { css } from '../../styled-system/css'
 import { shell } from '../gallery/layout.ts'
 import { overviewPage } from '../gallery/overview.ts'
 import { galleryPages } from '../gallery/pages.ts'
+import { groupedItems } from '../gallery/list-pages.ts'
+import {
+  people as mentionPeople,
+  photo,
+  treeFiles,
+  treeStack,
+  waterfallRows,
+} from '../gallery/leaf-pages.ts'
 import { AppRoute, pathOf, urlToRoute } from './route.ts'
 
 const { UrlRequest } = Navigation
@@ -116,6 +132,21 @@ export const kit = Ui.define({
   segmented: SegmentedControl.component,
   pages: Pagination.component,
   sortable: Sortable.component,
+  groupedSelect: Select.component,
+  groupedListbox: Listbox.component,
+  groupedCombo: Combobox.component,
+  // @kit-list
+  ...formsKit, // @kit-forms
+  datePicker: DatePicker.component,
+  colorPicker: ColorPicker.component,
+  imageCropper: ImageCropper.component,
+  tree: Tree.component,
+  treeChecks: Tree.component,
+  timeline: Timeline.component,
+  timelineRow: Timeline.component,
+  waterfall: Waterfall.component,
+  triggerMenu: TriggerMenu.component,
+  // @kit-leaf
 })
 
 // ── Model ───────────────────────────────────────────────────────────────────
@@ -348,6 +379,27 @@ export const init = (flags: Flags, url: Url.Url) => ({
       avatarItem: Avatar.init({ key: 'avatar-item' }),
       segmented: SegmentedControl.init({ key: 'segmented', value: 'week' }),
       pages: Pagination.init({ key: 'pages', pageCount: 8 }),
+      groupedSelect: Select.init({ key: 'grouped-select', items: groupedItems }),
+      groupedListbox: Listbox.init({ key: 'grouped-listbox' }),
+      groupedCombo: Combobox.init({ key: 'grouped-combo', items: groupedItems }),
+      // @init-list
+      ...formsInit, // @init-forms
+      datePicker: DatePicker.init({ key: 'date-picker', month: '2026-11', value: '2026-11-17' }),
+      colorPicker: ColorPicker.init({ key: 'color-picker' }),
+      imageCropper: ImageCropper.init({ key: 'image-cropper', src: photo }),
+      tree: Tree.init({ key: 'tree', nodes: treeFiles, expanded: ['app'], value: 'app/page.tsx' }),
+      treeChecks: Tree.init({
+        key: 'tree-checks',
+        nodes: treeStack,
+        checkable: true,
+        expanded: ['frontend', 'backend'],
+        checked: ['react'],
+      }),
+      timeline: Timeline.init({ key: 'timeline' }),
+      timelineRow: Timeline.init({ key: 'timeline-row', vertical: false }),
+      waterfall: Waterfall.init({ key: 'waterfall', rows: waterfallRows, expanded: ['script'] }),
+      triggerMenu: TriggerMenu.init({ key: 'trigger-menu', trigger: '@', items: mentionPeople }),
+      // @init-leaf
       sortable: Sortable.init({ key: 'sortable', value: ['Design', 'Build', 'Review', 'Ship'] }),
       tgBold: Toggle.init({ key: 'tg-bold' }),
       tgItalic: Toggle.init({ key: 'tg-italic' }),

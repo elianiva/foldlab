@@ -1,4 +1,7 @@
 import { definePreset } from '@pandacss/dev'
+import { formsStyles } from './styles/forms.ts'
+import { leafStyles } from './styles/leaf.ts'
+import { listStyles } from './styles/list.ts'
 
 // Every component rule targets the `data-*` attributes ui-sdk writes, so no part
 // needs a class name and no recipe prop has to be known at build time. Variants
@@ -1883,5 +1886,8 @@ const merge = (a: Rules, b: Rules): Rules => {
 
 export const foldlab = definePreset({
   name: 'foldlab',
-  globalCss: merge(merge(merge(base, depth), kit), polish) as never,
+  globalCss: merge(
+    merge(merge(merge(merge(base, depth), kit), polish), listStyles),
+    merge(formsStyles, leafStyles),
+  ) as never,
 })
