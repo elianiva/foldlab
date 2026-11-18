@@ -4,7 +4,7 @@ The kit is an adapter from ui-sdk to Foldkit: state in the Model, Messages out, 
 
 ## What a component author writes
 
-A component is a plain value. Three small files' worth of decisions, in one file (`packages/ui/src/dialog.ts` is the model):
+A component is a plain value. Three small files' worth of decisions, in one file (`packages/adapter/src/dialog.ts` is the model):
 
 ```ts
 export const State = Schema.Struct({ key: Schema.String, open: Schema.Boolean, mounted: Schema.Boolean, ... })
@@ -30,7 +30,7 @@ export const update = makeUpdate(component)
 
 `defineComponent` registers nothing. It names the shape for the compiler. The optional fields are the [lifecycle rule](adapter-api.md#lifecycle-state) (`renderState`, `completions`), the synchronous veto (`guard`), the scroll-lock claim (`lockSlot`) and Foldkit-owned text entry (`text`, `typed`).
 
-The helpers (`defineComponent`, `makeParts`, `makeUpdate`, `primitiveOf`) are not exported from the package index yet. Components live inside `packages/ui` for now.
+The helpers (`defineComponent`, `makeParts`, `makeUpdate`, `primitiveOf`) are not exported from the package index yet. Components live inside `packages/adapter` for now.
 
 ## What an app author imports
 
@@ -135,7 +135,7 @@ A boundary test (`boundaries.test.ts`) fails if any kit source declares a module
 
 ### Mounts cannot reach the Resource
 
-Foldkit 0.167 does not let a Mount read an app Resource, so the registry has a second way in. The evidence is in [upstream-notes.md](upstream-notes.md#foldkit-resources-are-not-reachable-from-a-mount). In short: `Mount.define` types its requirement as `Scope` only, the context a Mount runs in holds Foldkit's own services and none of the app's Resources, and Resource layers are built lazily, after the first render's Mounts.
+Foldkit 0.170 does not let a Mount read an app Resource, so the registry has a second way in. The evidence is in [upstream-notes.md](upstream-notes.md#foldkit-resources-are-not-reachable-from-a-mount). In short: `Mount.define` types its requirement as `Scope` only, the context a Mount runs in holds Foldkit's own services and none of the app's Resources, and Resource layers are built lazily, after the first render's Mounts.
 
 So `kit.layer(container)` creates the registry eagerly, when it is called, and records it on an anchor element under a symbol. A Mount finds it by walking up from its own element, and stops at `body`. Foldkit replaces the container node with the view's root while the app runs, so the anchor is the container's parent (the container itself when that is `body`). One registry value, two ways to reach it.
 

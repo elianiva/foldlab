@@ -1,11 +1,12 @@
 # Adapter API: ui-sdk for Foldkit
 
-This page compares the `@foldlab/ui` adapter with the ui-sdk React, Vue and Svelte adapters, for a combobox and an accordion. It then lists where the shapes diverge, and why.
+This page compares the `@foldlab/adapter` with the ui-sdk React, Vue and Svelte adapters, for a combobox and an accordion. It then lists where the shapes diverge, and why.
 
-`@foldlab/adapter` pins `@ui-sdk/core@0.1.0-beta.7`. The adapter reads `@ui-sdk/core/renderer`, which ui-sdk says is not public API. Only two files import it:
+`@foldlab/adapter` pins `@ui-sdk/core@0.1.0-beta.7`. The adapter reads `@ui-sdk/core/renderer`, which ui-sdk says is not public API. Three source files import it:
 
-- `packages/ui/src/internal/render.ts` – the render phase.
-- `packages/ui/src/internal/bind.ts` – the bind phase.
+- `packages/adapter/src/internal/render.ts` – the render phase.
+- `packages/adapter/src/internal/bind.ts` – the bind phase.
+- `packages/adapter/src/segmented-input.ts` – the shared date and time segment state.
 
 No ui-sdk type appears in the public API.
 
@@ -192,7 +193,7 @@ box.root(
 
 ## Where we diverge
 
-| Topic             | ui-sdk adapters                                                                                     | `@foldlab/ui`                                                                                  | Why                                                                                             |
+| Topic             | ui-sdk adapters                                                                                     | `@foldlab/adapter`                                                                             | Why                                                                                             |
 | ----------------- | --------------------------------------------------------------------------------------------------- | ---------------------------------------------------------------------------------------------- | ----------------------------------------------------------------------------------------------- |
 | Where state lives | Inside the instance, created by the root component. Optional `value` / `onValueChange` controls it. | Always in the Model, as a Schema. Always "controlled".                                         | Foldkit has one source of truth. DevTools, hydration and time travel need the state to be data. |
 | Instance identity | Generated id at mount.                                                                              | `key` in the state, threaded into every part.                                                  | A counter breaks SSR and hydration. The Model decides identity.                                 |
@@ -257,7 +258,7 @@ Do not put `h.OnClick` on a slot to change the ui-sdk state. It does not reach c
 
 ## Scene limitations
 
-- **`resolveBinds`.** Every bound part is one pending Mount, and Scene demands each be resolved. `@foldlab/ui/testing` exports `resolveBinds(lift)`. It resolves every `BindUiPart` with `CompletedUiSync` and owns the cast: a Mount resolver is typed with the child Message, and Scene feeds `update` the raw result without the view's `Mount.mapMessage`, so you pass the same lift the view uses.
+- **`resolveBinds`.** Every bound part is one pending Mount, and Scene demands each be resolved. `@foldlab/adapter/testing` exports `resolveBinds(lift)`. It resolves every `BindUiPart` with `CompletedUiSync` and owns the cast: a Mount resolver is typed with the child Message, and Scene feeds `update` the raw result without the view's `Mount.mapMessage`, so you pass the same lift the view uses.
 - **No `input` step.** Scene has `change`, not `input`. A typed value cannot be driven. Scene can assert the handler (`toHaveHandler('input')`), and Stories cover `TypedUiText` through `update`.
 - **`query` reset on close.** ui-sdk reports a closed single combobox as a controlled `query` of `undefined`. `Combobox.fold` reads it as "show the chosen label". Tests need to build that snapshot by hand.
 - **`@ui-sdk/core` types vs `exactOptionalPropertyTypes`.** `primitiveOf` widens each primitive in one place.
@@ -267,7 +268,7 @@ Do not put `h.OnClick` on a slot to change the ui-sdk state. It does not reach c
 - **Behavior.** Stories (`update` only) cover the Message flow and validation fully, with no DOM. Real keyboard and focus behavior only exists after `bind`, so only a browser run covers it. I ran that by hand with `agent-browser`: accordion toggle, name check, combobox filter and select, multi-select.
 - **View.** Scenes can check attributes, ARIA wiring and structure from the render phase. That is the payoff of a phase that is pure given the Model.
 - **Mounts.** See Scene limitations.
-- **Binding.** `packages/ui/src/bind.test.ts` runs the bind phase in happy-dom: one change per click for a doubly attached element, entry reuse across `sync`, and the guard veto.
+- **Binding.** `packages/adapter/src/bind.test.ts` runs the bind phase in happy-dom: one change per click for a doubly attached element, entry reuse across `sync`, and the guard veto.
 
 ## Lifecycle state
 
@@ -287,7 +288,7 @@ Toast, drawer, menu, popover and tooltip all fit this rule. Each component's sec
 
 ## Dialog
 
-Dialog is the component that stresses the two design choices that combobox and accordion never touched: one Mount per part, and a registry keyed by the Model. It was built through the adapter (`packages/ui/src/dialog.ts`) and compared with `@foldkit/ui`'s Dialog (0.170.0) on the same page. `@foldkit/ui` asks for `effect ~4.1.0`; the template pins 4.1.4. It ran, with a peer warning.
+Dialog is the component that stresses the two design choices that combobox and accordion never touched: one Mount per part, and a registry keyed by the Model. It was built through the adapter (`packages/adapter/src/dialog.ts`) and compared with `@foldkit/ui`'s Dialog (0.170.0) on the same page. `@foldkit/ui` asks for `effect ~4.1.0`; the template pins 4.1.4. It ran, with a peer warning.
 
 ### Mapping from `Binding` to a dialog
 
@@ -348,7 +349,7 @@ The `@foldkit/ui` leak needs the Model to be replaced as the view unmounts. Its 
 
 ### Sharing one Panda theme
 
-`@foldkit/ui` does not write `data-slot`. Its parts arrive as attribute arrays through `toView`. `stamp(h, 'dialog-content')` (`packages/ui/src/stamp.ts`) returns our `data-slot` as a `ChildAttribute`, and the demo spreads it after each array. The theme in `preset.ts` keys on `dialog-backdrop` and `dialog-content`, and it styles `data-closed`, which both providers write for leave states. The two dialogs render identically. A kit can mix providers without forking the theme.
+`@foldkit/ui` does not write `data-slot`. Its parts arrive as attribute arrays through `toView`. `stamp(h, 'dialog-content')` (`packages/adapter/src/stamp.ts`) returns our `data-slot` as a `ChildAttribute`, and the demo spreads it after each array. The theme in `preset.ts` keys on `dialog-backdrop` and `dialog-content`, and it styles `data-closed`, which both providers write for leave states. The two dialogs render identically. A kit can mix providers without forking the theme.
 
 One caveat: `@foldkit/ui` renders its closed dialog's children (`<dialog>` with the panel), so `[data-slot="dialog-content"]` also matches a closed `@foldkit/ui` panel. The adapter renders nothing when closed. Select by id in tests.
 
@@ -370,17 +371,17 @@ We do not patch `@foldkit/ui`.
 
 The kit's peer surface is `foldkit` and `effect`, and nothing else. `@foldkit/ui` is a dev dependency of `apps/web`, where the comparison lives. It asks for `effect ~4.1.0` and the template pins 4.1.4, so the 4.0 versus 4.1 question is now a demo question. If `@foldkit/ui` ever has to enter the shipped surface, bump `effect` to 4.1 and prove it with check, typecheck, tests and build in the same commit.
 
-`packages/ui/src/boundaries.test.ts` enforces this: `@foldkit/ui` appears in no manifest field of the kit and no kit source imports it, and the peer surface is exactly `effect` and `foldkit`. `@ui-sdk/core` is the kit's one runtime dependency, pinned.
+`packages/adapter/src/boundaries.test.ts` enforces this: `@foldkit/ui` appears in no manifest field of the kit and no kit source imports it, and the peer surface is exactly `effect` and `foldkit`. `@ui-sdk/core` is the kit's one runtime dependency, pinned.
 
 ## Bumping `@ui-sdk/core`
 
 `@ui-sdk/core/renderer` is not public API, so every bump is a review.
 
-1. Change the exact version in `packages/ui/package.json` and run `pnpm install`.
-2. Run `pnpm test`. `packages/ui/src/renderer-contract.test.ts` exercises `attrs`, `present`, `bind`, `part`, `setOptions`, `get` and `destroy`. A failure there names the broken export.
+1. Change the exact version in `packages/adapter/package.json` and run `pnpm install`.
+2. Run `pnpm test`. `packages/adapter/src/renderer-contract.test.ts` exercises `attrs`, `present`, `bind`, `part`, `setOptions`, `get` and `destroy`. A failure there names the broken export.
 3. Read the release notes for `renderer`, `createChange`, `controlled` and `sync`.
 4. Check the demo in a browser: accordion, single and multi combobox, same-tick double selection.
-5. Touch only `internal/render.ts` and `internal/bind.ts`.
+5. Touch only `internal/render.ts`, `internal/bind.ts` and `segmented-input.ts`.
 
 ## Render cost, measured
 

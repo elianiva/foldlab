@@ -21,7 +21,7 @@ The starter also includes:
 ## Foldlab
 
 An experiment: a ui-sdk adapter for Foldkit, styled with PandaCSS. Read
-[Kit guide](docs/kit.md) for what an app and a component author write, and [Adapter API](docs/adapter-api.md) for the design. `packages/ui` is the adapter; the demo form
+[Kit guide](docs/kit.md) for what an app and a component author write, and [Adapter API](docs/adapter-api.md) for the design. `packages/adapter` is the adapter; the demo form
 is in `apps/web/src/app/main.ts`.
 
 The demo runs without Cloudflare credentials. Alchemy serves the website Worker and the client together, as they ship:
