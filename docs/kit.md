@@ -104,6 +104,10 @@ const update = (model, message) => {
 1. **State folded but not confirmed.** By hand, each component appears in three places: the `update` fold, the Model, and the sync spec list. Forget the third and a refused change leaves the instance holding the acked value, with nothing to revert it. Nothing fails and the Model looks right. `Ui.define` builds the spec list from the same entries it folds.
 2. **The sync loop.** A sync Command's completion is itself a ui Message. An `update` that returns a sync for every ui Message, including that completion, runs forever. `Ui.update` returns no Commands for `CompletedUiSync`. By hand you must remember the early return.
 
+### Uncontrolled entries
+
+`Ui.define(entries, { uncontrolled: ['faq'] })` stops `update` from syncing those entries back to their instances. They fold into the Model as before. List every entry and `update` returns no Commands. See [adapter-api.md](adapter-api.md#uncontrolled-and-default-values) for what you give up.
+
 ### What it does not remove
 
 Reactions to a change (the demo's validation on assignee and channels) stay in the app's handler, because they are the app's. The handler shrinks by the wiring only.
@@ -206,3 +210,31 @@ What it cannot prove:
 `makeParts` gives every part a Foldkit key built from its component, instance key, slot and props. It is not optional. A Mount runs once, when its element is inserted, and Foldkit patches a same-tag sibling in place. After a page change, an unkeyed `<button>` from one component is reused for a `<button>` of another: its attributes update, but it keeps the old Mount, so the control looks right and does nothing. `e2e/gallery.pw.ts` navigates between pages and asserts the controls bind. With the key removed it fails.
 
 This applies to your own Mount-carrying elements too: key anything that carries `OnMount` and can swap places with another element of the same tag.
+
+## Beyond the Model: controllers, `render`, the page modules
+
+| Need                                          | Use                                                                                 |
+| --------------------------------------------- | ----------------------------------------------------------------------------------- |
+| Open, close, set or focus from `update`       | `Controllers.controllerOf(Dialog.component, model.ui.settings).open()` (a Command)  |
+| A trigger that is a link                      | `parts.trigger(props, attrs, children, { render: 'a' })`                            |
+| Refuse a dismissal by reason                  | `guard: (state, snapshot, reason) => ...` on the component                          |
+| An agent over the page                        | `Agent.createAgent()` at module level, `Agent.registerAgentTools` in a Subscription |
+| `mod+k` from anywhere                         | `Shortcuts.shortcutStream('mod+k', () => Message.OpenPalette())` in a Subscription  |
+| A saved theme on `<html>`                     | `Preferences.watchPreferences([theme], toMessage)` and `preferencesScript` inline   |
+| The entries of the shared `overlays` registry | `Overlays.watchOverlays(toMessage)` in a Subscription                               |
+
+A Subscription wires one of these Streams:
+
+```ts
+Subscription.make<Model, Message>()((entry) => ({
+  palette: entry(
+    { on: Schema.Boolean },
+    {
+      modelToDependencies: () => ({ on: true }),
+      dependenciesToStream: () => Shortcuts.shortcutStream('mod+k', () => Message.OpenedPalette()),
+    },
+  ),
+}))
+```
+
+`@foldlab/adapter` exports them as `Agent`, `Controllers`, `Overlays`, `Preferences` and `Shortcuts`. Details and the reasons some pieces stop short: [adapter-api.md](adapter-api.md#behaviours-react-has).

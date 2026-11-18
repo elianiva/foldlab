@@ -393,3 +393,73 @@ The kit's peer surface is `foldkit` and `effect`, and nothing else. `@foldkit/ui
 | 200  | 400                  | 15.8 ms      | 6.6 ms               |
 
 Baseline to beat: 50 rows, 100 mounts, 4.0 ms re-render. This page is nothing but comboboxes; a real page has one. The numbers do not separate instances built per view from parts patched per view, so the cause is open. A `renderPhase` cache keyed by component, key and controlled snapshot is the next step only if a real page regresses this.
+
+## Behaviours React has
+
+Seven cross-cutting behaviours from the ui-sdk React adapter, and what each became. `behaviours.test.ts` covers each one.
+
+### Swapping a part's element (`render`)
+
+React's `render` prop swaps the element a part makes. A part here takes a fourth argument, `{ render: tag }`, with a tag from the `Tag` union:
+
+```ts
+accordion.trigger({ value: 'b' }, [h.Href('/b')], ['Pricing'], { render: 'a' })
+```
+
+The attributes, the key and the Mount are the part's own: only the `h` constructor changes. The tag is part of the element key, so Foldkit never patches a `button` into an `a` in place. A `button` part rendered as anything else loses `type` and says `aria-disabled` instead of `disabled`. `render` is not an `as` prop, because `PartProps` go to ui-sdk. The options are Foldkit's.
+
+### Controllers
+
+ui-sdk's `createXController()` is a handle that forwards calls to the attached instance's `api`. A handle cannot live in the Model, so the same calls are a Command. `callController` finds the live instance in the registry by component and key (`liveInstance`) and calls `api[method](...args)`. `controllerOf(component, state)` builds the Commands for one instance:
+
+```ts
+const dialog = Controllers.controllerOf(Dialog.component, model.ui.settings)
+return { model, commands: [dialog.open()] } // also close(), setValue(v), focus(), call('setOpen', true)
+```
+
+It works for any component whose primitive's `api` has the method: `call` is the general form, the rest are names for the common ones. The call runs through the instance's own callbacks, so it passes the guard like a click, and the Model hears it as `ChangedUiState` with the reason `imperative`. Nothing is mounted, or no such method: it does nothing, as a controller does before it attaches. The Command's completion is `CompletedUiSync`, which `update` ignores. What the `controller` option adds in React, a trigger outside the popup that finds it, is not needed: a trigger is any element whose Message opens the popup through the Model.
+
+### Change details: reason and cancel
+
+`details.reason` travels three ways:
+
+- `Message.ChangedUiState.reason` and `RefusedUiChange.reason`, as before.
+- `makeUpdate` passes it to `fold(state, snapshot, reason)`, for policy that needs to know why (a `dirty` flag, a log). It never rebuilds state: the snapshot does that. `reason` is optional there, because direct callers have none.
+- The guard gets it: `guard(state, snapshot, reason)`.
+
+`details.cancel()` is the guard returning false. Core ignores `cancel` on a controlled component anyway, since the next value comes from the app, so refusing means not acking, and that is what the guard does before the instance moves. "Discard changes?" on a dialog:
+
+```ts
+guard: (state, snapshot, reason) =>
+  !(state.dirty && snapshot['open'] === false && isDismissal(reason))
+```
+
+`isDismissal` is ui-sdk's, re-exported by `@foldlab/adapter`. A vetoed change arrives as `RefusedUiChange` with the same reason, so `update` can show why. `details.source` and `details.event` do not cross: a Message is data, and `source` is for analytics, never behavior.
+
+### Uncontrolled and default values
+
+Every component takes defaults through `init` (`Accordion.init({ key, value: ['a'] })`), and the Model always holds the state. Instance-held state (React's `defaultValue`) is not an option here, because the render phase builds attributes from the Model: a Model that does not follow the instance would draw a stale view on the next render.
+
+What an app can skip is the confirmation. `Ui.define(entries, { uncontrolled: ['faq'] })` still folds the entry's changes into the Model, but never returns a sync for it. The instance keeps what it acked and the Model follows. With every entry listed, `update` returns no Commands, so the app wires one handler and no Command mapping. The cost: nothing reverts a change `update` would refuse, and an app that sets an uncontrolled entry's Model by hand does not reach the instance. `guard` still vetoes, because it runs in the instance.
+
+### Generics
+
+React types `Select`, `Combobox`, `Listbox`, `Tabs`, `Radio` and `SegmentedControl` over their value type. Our `State` holds `string` and does not become generic, for three reasons. The Model is a Schema, so a value must survive encoding, and a generic `T` needs a Schema per use. The registry, the Message `snapshot` and the sync spec are `unknown` by design: one Message union serves every component. A generic `State<T>` would make `Component<State<T>, Slot>` invariant in `T`, which breaks `Ui.define`'s entries. A typed value is a Schema at the edge of the app: `Schema.Literals(['free', 'pro'])`, decoded from `state.value` where the app reads it.
+
+### Agent surface
+
+`Agent` re-exports `createAgent`, `agentTools` and `registerTools`, with their types. The agent listens to every instance as it is created, and ours are ordinary ui-sdk instances, so `snapshot`, `query` and `act` see the registry's components. An agent's `setOpen` reaches the instance's callbacks with the source `agent`, passes the guard, and arrives as `ChangedUiState`. Create the agent at module level, before the first view: it only hears components made after it.
+
+Two Streams for Subscriptions: `registerAgentTools(agent, { allow })` registers the tools with the browser's agent while the Stream runs (`allow` is required, as in ui-sdk), and `watchAgent(agent, toMessage)` turns every change, from a person or an agent, into a Message.
+
+### Page-level modules
+
+| Module                             | Adapter                                                                                                                                                                                                                                        |
+| ---------------------------------- | ---------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------- |
+| `shortcuts`                        | `Shortcuts.shortcutStream(keys, toMessage, options)`: a Stream for a Subscription. `setShortcutScope`: a Command. `shortcutHint(keys, apple)`: the text and `aria-keyshortcuts`, with the platform as an argument because a view must be pure. |
+| `overlays`                         | `Overlays.watchOverlays(toMessage, registry?)`: a Stream of the entries that marks a host as attached. No host is shipped.                                                                                                                     |
+| `preferences` (`createPreference`) | `Preferences.watchPreferences(list, toMessage)`: writes global ones on `<html>`, reports every value by attribute. `preferencesScript(list)` goes inline in `index.html` for the first paint.                                                  |
+
+Why `overlays` stops at the Stream: `confirm()` returns a promise that its host settles through the entry's controller. A controller object cannot be a Model field, so the host React ships (`OverlayHost`) has no Model-pure form. Render a Model-owned `AlertDialog` for a question, and drive it with `controllerOf`. `toast()` into the shared registry has the same reason: the kit's `Toast` owns its toaster instead.
+
+Why preferences have no element: React's `Preferences` sets `data-*` on a wrapper that has `display: contents`. A Foldkit view puts `h.Attribute(attribute, value)` on its own element, from the values in the Model, and `<html>` is reached by the Stream because a view cannot.

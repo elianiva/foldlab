@@ -53,6 +53,16 @@ export type Tag =
   | 'p'
   | 'h2'
   | 'h3'
+  | 'section'
+  | 'header'
+  | 'footer'
+  | 'form'
+  | 'ol'
+  | 'h1'
+  | 'h4'
+  | 'fieldset'
+  | 'legend'
+  | 'output'
 
 export type Component<State, Slot extends string> = Readonly<{
   /** `data-slot` prefix and registry name. */
@@ -78,10 +88,17 @@ export type Component<State, Slot extends string> = Readonly<{
   completions?: Readonly<Record<string, string>>
   /** Internal ui-sdk state the Model owns, patched over a fresh instance in the render phase. */
   renderState?: (state: State) => Readonly<Record<string, unknown>>
-  /** Synchronous veto for policy the app knows at view time. Default: allow. */
-  guard?: (state: State, snapshot: Snapshot) => boolean
-  /** State after a snapshot of controlled options lands. Pure and idempotent. */
-  fold: (state: State, snapshot: Snapshot) => State
+  /**
+   * Synchronous veto for policy the app knows at view time. Default: allow.
+   * `reason` is ui-sdk's `details.reason`, so a guard can refuse an `escape-key` and allow a `close-press`.
+   * Returning false is `details.cancel()`.
+   */
+  guard?: (state: State, snapshot: Snapshot, reason: string) => boolean
+  /**
+   * State after a snapshot of controlled options lands. Pure and idempotent.
+   * `reason` says why when a change carries one, for policy only (a `dirty` flag, a log), never to rebuild state.
+   */
+  fold: (state: State, snapshot: Snapshot, reason?: string) => State
   /** State after text is typed into the `text` slot. */
   typed?: (state: State, text: string) => State
   /** The slot whose text entry Foldkit owns: `h.Value` and `h.OnInput`, no core `input` handler. */
@@ -104,8 +121,8 @@ export const bindingOf = <State, Slot extends string>(
     completions: component.completions ?? {},
     ...(component.lockSlot === undefined ? {} : { lockSlot: component.lockSlot }),
     ...(component.mirror === undefined ? {} : { mirror: component.mirror }),
-    fold: (state, snapshot) => component.fold(decode(state), snapshot),
-    guard: (state, snapshot) => component.guard?.(decode(state), snapshot) ?? true,
+    fold: (state, snapshot, reason) => component.fold(decode(state), snapshot, reason),
+    guard: (state, snapshot, reason) => component.guard?.(decode(state), snapshot, reason) ?? true,
     foldkitEvents: component.text === undefined ? {} : { [component.text]: ['input'] },
   }
 }
@@ -126,7 +143,7 @@ export const makeUpdate =
     if (message._tag === 'CompletedUiSync' || message._tag === 'RefusedUiChange') return state
     if (message.component !== component.name || message.key !== component.key(state)) return state
     if (message._tag === 'TypedUiText') return component.typed?.(state, message.value) ?? state
-    return component.fold(state, message.snapshot)
+    return component.fold(state, message.snapshot, message.reason)
   }
 
 // ── Bind phase: Mount ───────────────────────────────────────────────────────
@@ -256,10 +273,14 @@ export type PartsConfig<AppMessage> = Readonly<{
   anchor?: string
 }>
 
+/** Per-call options of a part. `render` swaps the element: a trigger rendered as `a`. */
+export type PartOptions = Readonly<{ render?: Tag }>
+
 export type Part<AppMessage> = (
   props: PartProps,
   attributes?: ReadonlyArray<Attribute<AppMessage>>,
   children?: ReadonlyArray<Html | string>,
+  options?: PartOptions,
 ) => Html
 
 export type Parts<AppMessage, Slot extends string> = Readonly<Record<Slot, Part<AppMessage>>> &
@@ -288,6 +309,16 @@ const toAttributes = <AppMessage>(
   return result
 }
 
+// A button's own attributes mean nothing on another element: `type` is dropped, and
+// `disabled` becomes `aria-disabled`, which is what a disabled link can say.
+const swapped = (attrs: Attrs, tag: Tag, own: Tag): Attrs => {
+  if (tag === own || own !== 'button') return attrs
+  const rest = Object.fromEntries(
+    Object.entries(attrs).filter(([name]) => name !== 'type' && name !== 'disabled'),
+  )
+  return attrs['disabled'] === undefined ? rest : { ...rest, 'aria-disabled': 'true' }
+}
+
 export const makeParts =
   <State, Slot extends string>(component: Component<State, Slot>) =>
   <AppMessage>(
@@ -303,12 +334,13 @@ export const makeParts =
     )
     const part =
       (slot: Slot): Part<AppMessage> =>
-      (given, attributes = [], children = []) => {
+      (given, attributes = [], children = [], options = {}) => {
+        const tag = options.render ?? component.tags[slot]
         const props = component.keepMounted?.includes(slot)
           ? { keepMounted: true, ...given }
           : given
         if (!rendered.present(slot, props)) return h.empty
-        const shown = rendered.attrs(slot, props)
+        const shown = swapped(rendered.attrs(slot, props), tag, component.tags[slot])
         // `hidden` would make the closed panel `display: none` for good, and the preflight
         // layer wins over any override, so a kept panel is marked closed instead and CSS hides it.
         const own =
@@ -349,11 +381,10 @@ export const makeParts =
           // Always keyed. A Mount runs once, when its element is inserted, and Foldkit
           // patches a same-tag sibling in place. Without a key, a part from another
           // component (after a page change) reuses this element and keeps the old binding.
-          h.Key(`${component.name}:${key}:${slot}:${JSON.stringify(props)}`),
+          h.Key(`${component.name}:${key}:${slot}:${tag}:${JSON.stringify(props)}`),
           ...attributes,
           ...mount,
         ]
-        const tag = component.tags[slot]
         return tag === 'input' ? h.input(all) : tag === 'img' ? h.img(all) : h[tag](all, children)
       }
     const attributes = (slot: Slot, props: PartProps = {}, only?: ReadonlyArray<string>) => {

@@ -22,8 +22,20 @@ export const layerOf = (components: ReadonlyArray<AnyComponent>, container: Elem
     container,
   )
 
-export const define = <const E extends Entries>(entries: E) => {
+export type DefineOptions<E extends Entries> = Readonly<{
+  /**
+   * Entries that fold their own state: `update` still folds a change into the Model, so
+   * the view stays pure given the Model, but it never returns a sync for them. The
+   * instance keeps what it acked, and the Model follows. An entry nobody has to
+   * confirm or revert needs no Command wiring: with every entry listed here,
+   * `update` returns no Commands at all. A `guard` still vetoes.
+   */
+  uncontrolled?: ReadonlyArray<keyof E & string>
+}>
+
+export const define = <const E extends Entries>(entries: E, options: DefineOptions<E> = {}) => {
   const names = Object.keys(entries) as Array<keyof E & string>
+  const synced = names.filter((name) => !options.uncontrolled?.includes(name))
   const updates = Object.fromEntries(names.map((name) => [name, makeUpdate(entries[name]!)]))
 
   // The one place the compiler is told what a runtime-built record holds: each
@@ -46,9 +58,11 @@ export const define = <const E extends Entries>(entries: E) => {
     ) as ModelOf<E>
     return {
       model: next,
-      commands: [
-        syncUiState({ specs: names.map((name) => specOf(entries[name]!, next[name])) }),
-      ] as ReadonlyArray<ReturnType<typeof syncUiState>>,
+      commands: (synced.length === 0
+        ? []
+        : [
+            syncUiState({ specs: synced.map((name) => specOf(entries[name]!, next[name])) }),
+          ]) as ReadonlyArray<ReturnType<typeof syncUiState>>,
     }
   }
 

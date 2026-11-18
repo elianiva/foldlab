@@ -24,12 +24,12 @@ export type Binding = Readonly<{
   /** Completion callbacks (`onOpenChangeComplete`): callback option to the snapshot key it sets. Never guarded. */
   completions: Readonly<Record<string, string>>
   /** State after a snapshot lands. Pure and idempotent. */
-  fold: (state: unknown, snapshot: Snapshot) => unknown
+  fold: (state: unknown, snapshot: Snapshot, reason: string) => unknown
   /**
-   * Synchronous veto, pure. Gets the state the instance holds and the snapshot
-   * it asked for. False means: do not ack, do not call setOptions.
+   * Synchronous veto, pure. Gets the state the instance holds, the snapshot
+   * it asked for and ui-sdk's `details.reason`. False is `details.cancel()`: do not ack, do not call setOptions.
    */
-  guard: (state: unknown, snapshot: Snapshot) => boolean
+  guard: (state: unknown, snapshot: Snapshot, reason: string) => boolean
   /** The slot whose bind takes the document scroll lock (a modal's content). */
   lockSlot?: string
   /** Instance state keys, not controlled, that the Model follows read-only, like a drag draft. */
@@ -117,12 +117,12 @@ const optionsOf = (entry: Entry) => {
     const reason = details?.reason ?? 'unknown'
     const next = { ...snapshotOf(binding, entry.state), [option]: value }
     const [sink] = entry.sinks
-    if (!binding.guard(entry.state, next)) {
+    if (!binding.guard(entry.state, next, reason)) {
       // Not acking is the veto: core keeps the old option, so nothing moves.
       sink?.({ snapshot: next, reason, refused: true })
       return
     }
-    entry.state = binding.fold(entry.state, next)
+    entry.state = binding.fold(entry.state, next, reason)
     entry.instance.setOptions(optionsOf(entry))
     sink?.({ snapshot: snapshotOf(binding, entry.state), reason, refused: false })
   }
@@ -133,9 +133,10 @@ const optionsOf = (entry: Entry) => {
   // folded without a guard and the Model learns of it.
   const completion = (key: string) => (value: unknown, details?: { reason?: string }) => {
     const next = { ...snapshotOf(binding, entry.state), [key]: value }
-    entry.state = binding.fold(entry.state, next)
+    const reason = details?.reason ?? 'complete'
+    entry.state = binding.fold(entry.state, next, reason)
     const [sink] = entry.sinks
-    sink?.({ snapshot: next, reason: details?.reason ?? 'complete', refused: false })
+    sink?.({ snapshot: next, reason, refused: false })
   }
   const completions = Object.fromEntries(
     Object.entries(binding.completions).map(([name, key]) => [name, completion(key)]),
@@ -180,7 +181,7 @@ export const attach = (
         const text = JSON.stringify(snapshot)
         if (text === last) return
         last = text
-        created.state = binding.fold(created.state, snapshot)
+        created.state = binding.fold(created.state, snapshot, 'mirror')
         const [sink] = created.sinks
         sink?.({ snapshot, reason: 'mirror', refused: false })
       })
