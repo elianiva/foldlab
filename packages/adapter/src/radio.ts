@@ -1,6 +1,7 @@
 import { radioGroup } from '@ui-sdk/core/radio'
 import { Schema } from 'effect'
 import { defineComponent, makeParts, makeUpdate } from './core.ts'
+import { named } from './form-inputs.ts'
 import { primitiveOf } from './internal/render.ts'
 
 export const State = Schema.Struct({
@@ -8,16 +9,23 @@ export const State = Schema.Struct({
   /** The chosen option's value, or empty when none is chosen. */
   value: Schema.String,
   disabled: Schema.Boolean,
+  name: Schema.String,
 })
 export type State = typeof State.Type
 
-export const init = (state: { key: string; value?: string; disabled?: boolean }): State => ({
+export const init = (state: {
+  key: string
+  value?: string
+  disabled?: boolean
+  name?: string
+}): State => ({
   key: state.key,
   value: state.value ?? '',
   disabled: state.disabled ?? false,
+  name: state.name ?? '',
 })
 
-type Slot = 'group' | 'root' | 'indicator'
+type Slot = 'group' | 'root' | 'input' | 'indicator'
 
 export const component = defineComponent<State, Slot>({
   name: 'radio',
@@ -27,6 +35,7 @@ export const component = defineComponent<State, Slot>({
   options: (state) => ({
     value: state.value === '' ? null : state.value,
     disabled: state.disabled,
+    ...named(state.name),
   }),
   controlled: ['value'],
   callbacks: { onValueChange: 'value' },
@@ -34,7 +43,7 @@ export const component = defineComponent<State, Slot>({
     ...state,
     value: typeof snapshot['value'] === 'string' ? snapshot['value'] : '',
   }),
-  tags: { group: 'div', root: 'button', indicator: 'span' },
+  tags: { group: 'div', root: 'button', input: 'input', indicator: 'span' },
   bound: ['group', 'root'],
 })
 

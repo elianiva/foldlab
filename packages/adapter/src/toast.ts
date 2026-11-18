@@ -8,6 +8,8 @@ export const ToastItem = Schema.Struct({
   title: Schema.String,
   description: Schema.String,
   type: Schema.String,
+  /** The label of the toast's action button, such as Undo. */
+  action: Schema.optionalKey(Schema.String),
 })
 export type ToastItem = typeof ToastItem.Type
 
@@ -26,19 +28,31 @@ export const makeToaster = (): Toaster => createToaster<string>({ duration: 4000
 /** Queues a toast. Returns the item to add to the Model. */
 export const show = (
   toaster: Toaster,
-  toast: { title: string; description: string; type?: string },
+  toast: {
+    title: string
+    description: string
+    type?: string
+    action?: { label: string; onAction: () => void }
+  },
 ): ToastItem => {
   const type = toast.type ?? 'default'
   const options: ToastOptions<string> = {
     title: toast.title,
     description: toast.description,
+    ...(toast.action === undefined ? {} : { action: toast.action }),
     type:
       type === 'success' || type === 'error' || type === 'info' || type === 'warning'
         ? type
         : 'default',
   }
   const id = toaster(options)
-  return { id, title: toast.title, description: toast.description, type }
+  return {
+    id,
+    title: toast.title,
+    description: toast.description,
+    type,
+    ...(toast.action === undefined ? {} : { action: toast.action.label }),
+  }
 }
 
 /** Calls `onChange` with the ids still queued, whenever that changes. Returns the unsubscribe. */
@@ -60,7 +74,7 @@ export const added = (state: State, item: ToastItem): State => ({
   items: [...state.items.filter((existing) => existing.id !== item.id), item],
 })
 
-type Slot = 'region' | 'list' | 'root' | 'title' | 'description' | 'close'
+type Slot = 'region' | 'list' | 'root' | 'title' | 'description' | 'action' | 'close'
 
 export const componentOf = (toaster: Toaster) =>
   defineComponent<State, Slot>({
@@ -79,6 +93,7 @@ export const componentOf = (toaster: Toaster) =>
           title: item.title,
           description: item.description,
           type: item.type,
+          ...(item.action === undefined ? {} : { action: { label: item.action } }),
           duration: 4000,
           priority: 'polite',
           version: 0,
@@ -95,9 +110,10 @@ export const componentOf = (toaster: Toaster) =>
       root: 'li',
       title: 'div',
       description: 'div',
+      action: 'button',
       close: 'button',
     },
-    bound: ['region', 'root', 'close'],
+    bound: ['region', 'root', 'action', 'close'],
   })
 
 // The render phase never touches the toaster (the Model's items stand in for it), so a spare

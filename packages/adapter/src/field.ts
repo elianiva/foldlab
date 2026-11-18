@@ -1,4 +1,4 @@
-import { field } from '@ui-sdk/core/field'
+import { field, fieldSet } from '@ui-sdk/core/field'
 import { Schema } from 'effect'
 import { defineComponent, makeParts } from './core.ts'
 import { primitiveOf } from './internal/render.ts'
@@ -36,3 +36,27 @@ export const component = defineComponent<State, Slot>({
 })
 
 export const parts = makeParts(component)
+
+// A fieldset: `disabled` on it disables every control inside, and its legend names the group.
+export const SetState = Schema.Struct({ key: Schema.String, disabled: Schema.Boolean })
+export type SetState = typeof SetState.Type
+
+export const setInit = (state: { key: string; disabled?: boolean }): SetState => ({
+  key: state.key,
+  disabled: state.disabled ?? false,
+})
+
+export const setComponent = defineComponent<SetState, 'set' | 'legend' | 'description'>({
+  name: 'field-set',
+  primitive: primitiveOf(fieldSet),
+  state: SetState,
+  key: (state) => state.key,
+  options: (state) => ({ disabled: state.disabled }),
+  controlled: [],
+  callbacks: {},
+  fold: (state) => state,
+  tags: { set: 'fieldset', legend: 'legend', description: 'p' },
+  bound: [],
+})
+
+export const setParts = makeParts(setComponent)

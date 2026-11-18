@@ -9,7 +9,7 @@ export type State = typeof State.Type
 
 export const init = (state: { key: string }): State => ({ key: state.key })
 
-type Slot = 'root' | 'viewport' | 'content' | 'scrollbar' | 'thumb'
+type Slot = 'root' | 'viewport' | 'content' | 'scrollbar' | 'thumb' | 'corner'
 
 export const component = defineComponent<State, Slot>({
   name: 'scroll-area',
@@ -20,8 +20,15 @@ export const component = defineComponent<State, Slot>({
   controlled: [],
   callbacks: {},
   fold: (state) => state,
-  tags: { root: 'div', viewport: 'div', content: 'div', scrollbar: 'div', thumb: 'div' },
-  bound: ['root', 'viewport', 'scrollbar', 'thumb'],
+  tags: {
+    root: 'div',
+    viewport: 'div',
+    content: 'div',
+    scrollbar: 'div',
+    thumb: 'div',
+    corner: 'div',
+  },
+  bound: ['root', 'viewport', 'scrollbar', 'thumb', 'corner'],
 })
 
 export const parts = makeParts(component)
