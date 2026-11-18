@@ -8,7 +8,7 @@ export const State = Schema.Struct(popupFields)
 export type State = typeof State.Type
 export const init = popupInit
 
-type Slot = 'trigger' | 'content'
+type Slot = 'trigger' | 'content' | 'arrow'
 
 export const component = defineComponent<State, Slot>({
   name: 'tooltip',
@@ -21,8 +21,8 @@ export const component = defineComponent<State, Slot>({
   completions: popupCompletions,
   renderState: (state) => ({ mounted: state.mounted }),
   fold: popupFold,
-  tags: { trigger: 'button', content: 'div' },
-  bound: ['trigger', 'content'],
+  tags: { trigger: 'button', content: 'div', arrow: 'span' },
+  bound: ['trigger', 'content', 'arrow'],
 })
 
 export const parts = makeParts(component)

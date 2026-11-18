@@ -11,7 +11,7 @@ export const init = (state: { key: string; value: string }): State => ({
   value: state.value,
 })
 
-type Slot = 'root' | 'list' | 'tab' | 'panel'
+type Slot = 'root' | 'list' | 'tab' | 'indicator' | 'panel'
 
 export const component = defineComponent<State, Slot>({
   name: 'tabs',
@@ -25,8 +25,8 @@ export const component = defineComponent<State, Slot>({
     ...state,
     value: typeof snapshot['value'] === 'string' ? snapshot['value'] : state.value,
   }),
-  tags: { root: 'div', list: 'div', tab: 'button', panel: 'div' },
-  bound: ['root', 'list', 'tab', 'panel'],
+  tags: { root: 'div', list: 'div', tab: 'button', indicator: 'div', panel: 'div' },
+  bound: ['root', 'list', 'tab', 'indicator', 'panel'],
 })
 
 export const parts = makeParts(component)

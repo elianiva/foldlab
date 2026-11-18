@@ -84,6 +84,13 @@ type Slot =
   | 'empty'
   | 'status'
   | 'clear'
+  | 'value'
+  | 'arrow'
+  | 'viewport'
+  | 'header'
+  | 'group'
+  | 'group-label'
+  | 'separator'
 
 export const component = defineComponent<State, Slot>({
   name: 'combobox',
@@ -121,8 +128,33 @@ export const component = defineComponent<State, Slot>({
     empty: 'div',
     status: 'div',
     clear: 'button',
+    value: 'span',
+    arrow: 'span',
+    viewport: 'div',
+    header: 'div',
+    group: 'div',
+    'group-label': 'div',
+    separator: 'div',
   },
-  bound: ['root', 'label', 'input', 'trigger', 'content', 'list', 'item', 'empty', 'clear'],
+  bound: [
+    'root',
+    'label',
+    'input',
+    'trigger',
+    'content',
+    'list',
+    'item',
+    'empty',
+    'status',
+    'clear',
+    'value',
+    'arrow',
+    'viewport',
+    'header',
+    'group',
+    'group-label',
+    'separator',
+  ],
 })
 
 export const parts = makeParts(component)

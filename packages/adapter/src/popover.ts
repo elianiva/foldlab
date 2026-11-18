@@ -12,7 +12,15 @@ export const init = (state: { key: string; open?: boolean; titled?: boolean }): 
   titled: state.titled ?? true,
 })
 
-type Slot = 'trigger' | 'content' | 'title' | 'description' | 'close'
+type Slot =
+  | 'trigger'
+  | 'content'
+  | 'viewport'
+  | 'arrow'
+  | 'title'
+  | 'description'
+  | 'close'
+  | 'shortcut'
 
 export const component = defineComponent<State, Slot>({
   name: 'popover',
@@ -28,11 +36,14 @@ export const component = defineComponent<State, Slot>({
   tags: {
     trigger: 'button',
     content: 'div',
+    viewport: 'div',
+    arrow: 'span',
+    shortcut: 'span',
     title: 'h3',
     description: 'p',
     close: 'button',
   },
-  bound: ['trigger', 'content', 'title', 'description', 'close'],
+  bound: ['trigger', 'content', 'viewport', 'arrow', 'title', 'description', 'close'],
 })
 
 export const parts = makeParts(component)

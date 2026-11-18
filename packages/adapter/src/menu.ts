@@ -17,7 +17,7 @@ export const init = (state: { key: string; open?: boolean }): State => ({
   action: '',
 })
 
-type Slot = 'trigger' | 'content' | 'item' | 'group' | 'separator'
+type Slot = 'trigger' | 'content' | 'viewport' | 'item' | 'group' | 'separator' | 'shortcut'
 
 export const component = defineComponent<State, Slot>({
   name: 'menu',
@@ -35,8 +35,16 @@ export const component = defineComponent<State, Slot>({
     const action = snapshot['action']
     return typeof action === 'string' ? { ...folded, action } : folded
   },
-  tags: { trigger: 'button', content: 'div', item: 'div', group: 'div', separator: 'div' },
-  bound: ['trigger', 'content', 'item', 'group'],
+  tags: {
+    trigger: 'button',
+    content: 'div',
+    viewport: 'div',
+    item: 'div',
+    group: 'div',
+    separator: 'div',
+    shortcut: 'span',
+  },
+  bound: ['trigger', 'content', 'viewport', 'item', 'group'],
 })
 
 export const parts = makeParts(component)

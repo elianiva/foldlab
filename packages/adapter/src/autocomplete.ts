@@ -38,6 +38,13 @@ type Slot =
   | 'item'
   | 'item-text'
   | 'empty'
+  | 'status'
+  | 'arrow'
+  | 'viewport'
+  | 'header'
+  | 'group'
+  | 'group-label'
+  | 'separator'
 
 export const component = defineComponent<State, Slot>({
   name: 'autocomplete',
@@ -64,8 +71,31 @@ export const component = defineComponent<State, Slot>({
     item: 'div',
     'item-text': 'span',
     empty: 'div',
+    status: 'div',
+    arrow: 'span',
+    viewport: 'div',
+    header: 'div',
+    group: 'div',
+    'group-label': 'div',
+    separator: 'div',
   },
-  bound: ['label', 'input', 'trigger', 'clear', 'content', 'list', 'item', 'empty'],
+  bound: [
+    'label',
+    'input',
+    'trigger',
+    'clear',
+    'content',
+    'list',
+    'item',
+    'empty',
+    'status',
+    'arrow',
+    'viewport',
+    'header',
+    'group',
+    'group-label',
+    'separator',
+  ],
 })
 
 export const parts = makeParts(component)

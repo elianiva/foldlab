@@ -39,7 +39,7 @@ const fold = (state: State, snapshot: Snapshot): State => {
   return { ...state, open, mounted: typeof mounted === 'boolean' ? mounted : state.mounted || open }
 }
 
-type Slot = 'trigger' | 'backdrop' | 'content' | 'title' | 'description' | 'close'
+type Slot = 'trigger' | 'backdrop' | 'content' | 'title' | 'description' | 'close' | 'shortcut'
 
 export const component = defineComponent<State, Slot>({
   name: 'dialog',
@@ -64,6 +64,7 @@ export const component = defineComponent<State, Slot>({
     title: 'h2',
     description: 'p',
     close: 'button',
+    shortcut: 'span',
   },
   bound: ['trigger', 'backdrop', 'content', 'title', 'description', 'close'],
 })

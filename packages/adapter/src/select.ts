@@ -26,7 +26,25 @@ export const init = (state: {
 export const labelOf = (state: State, value: string) =>
   state.items.find((item) => item.value === value)?.label ?? value
 
-type Slot = 'root' | 'trigger' | 'content' | 'list' | 'item' | 'item-text' | 'item-indicator'
+type Slot =
+  | 'root'
+  | 'label'
+  | 'trigger'
+  | 'value'
+  | 'arrow'
+  | 'clear'
+  | 'input'
+  | 'content'
+  | 'viewport'
+  | 'list'
+  | 'item'
+  | 'item-text'
+  | 'item-indicator'
+  | 'group'
+  | 'group-label'
+  | 'separator'
+  | 'empty'
+  | 'status'
 
 export const component = defineComponent<State, Slot>({
   name: 'select',
@@ -52,14 +70,42 @@ export const component = defineComponent<State, Slot>({
   }),
   tags: {
     root: 'div',
+    label: 'label',
     trigger: 'button',
+    value: 'span',
+    arrow: 'span',
+    clear: 'button',
+    input: 'input',
     content: 'div',
+    viewport: 'div',
     list: 'div',
     item: 'div',
     'item-text': 'span',
     'item-indicator': 'span',
+    group: 'div',
+    'group-label': 'div',
+    separator: 'div',
+    empty: 'div',
+    status: 'div',
   },
-  bound: ['root', 'trigger', 'content', 'list', 'item'],
+  bound: [
+    'root',
+    'label',
+    'trigger',
+    'value',
+    'arrow',
+    'clear',
+    'input',
+    'content',
+    'viewport',
+    'list',
+    'item',
+    'group',
+    'group-label',
+    'separator',
+    'empty',
+    'status',
+  ],
 })
 
 export const parts = makeParts(component)

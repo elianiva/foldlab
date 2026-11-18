@@ -33,7 +33,19 @@ export const visibleItems = (state: State): ReadonlyArray<Item> =>
         .toSorted((a, b) => b.score - a.score)
         .map(({ item }) => item)
 
-type Slot = 'root' | 'input' | 'list' | 'item' | 'item-text' | 'empty'
+type Slot =
+  | 'root'
+  | 'input'
+  | 'list'
+  | 'item'
+  | 'item-text'
+  | 'empty'
+  | 'status'
+  | 'group'
+  | 'group-label'
+  | 'separator'
+  | 'page'
+  | 'shortcut'
 
 export const component = defineComponent<State, Slot>({
   name: 'command',
@@ -66,8 +78,25 @@ export const component = defineComponent<State, Slot>({
     item: 'div',
     'item-text': 'span',
     empty: 'div',
+    status: 'div',
+    group: 'div',
+    'group-label': 'div',
+    separator: 'div',
+    page: 'div',
+    shortcut: 'span',
   },
-  bound: ['root', 'input', 'list', 'item', 'empty'],
+  bound: [
+    'root',
+    'input',
+    'list',
+    'item',
+    'empty',
+    'status',
+    'group',
+    'group-label',
+    'separator',
+    'page',
+  ],
 })
 
 export const parts = makeParts(component)

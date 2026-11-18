@@ -24,7 +24,7 @@ const asArray = (value: unknown): ReadonlyArray<string> =>
       ? strings(value)
       : [String(value)]
 
-type Slot = 'root' | 'item' | 'item-indicator'
+type Slot = 'root' | 'item' | 'item-indicator' | 'group' | 'group-label' | 'separator'
 
 export const component = defineComponent<State, Slot>({
   name: 'listbox',
@@ -38,8 +38,15 @@ export const component = defineComponent<State, Slot>({
   controlled: ['value'],
   callbacks: { onValueChange: 'value' },
   fold: (state, snapshot) => ({ ...state, value: asArray(snapshot['value']) }),
-  tags: { root: 'div', item: 'div', 'item-indicator': 'span' },
-  bound: ['root', 'item'],
+  tags: {
+    root: 'div',
+    item: 'div',
+    'item-indicator': 'span',
+    group: 'div',
+    'group-label': 'div',
+    separator: 'div',
+  },
+  bound: ['root', 'item', 'group', 'group-label', 'separator'],
 })
 
 export const parts = makeParts(component)

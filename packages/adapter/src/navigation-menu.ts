@@ -12,7 +12,7 @@ export type State = typeof State.Type
 
 export const init = (state: { key: string }): State => ({ key: state.key, value: '' })
 
-type Slot = 'root' | 'list' | 'item' | 'trigger' | 'content' | 'link'
+type Slot = 'root' | 'list' | 'item' | 'trigger' | 'content' | 'link' | 'indicator' | 'viewport'
 
 export const component = defineComponent<State, Slot>({
   name: 'navigation-menu',
@@ -33,8 +33,10 @@ export const component = defineComponent<State, Slot>({
     trigger: 'button',
     content: 'div',
     link: 'span',
+    indicator: 'div',
+    viewport: 'div',
   },
-  bound: ['root', 'list', 'item', 'trigger', 'content', 'link'],
+  bound: ['root', 'list', 'item', 'trigger', 'content', 'link', 'indicator', 'viewport'],
 })
 
 export const parts = makeParts(component)
