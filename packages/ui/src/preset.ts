@@ -1,4 +1,5 @@
 import { definePreset } from '@pandacss/dev'
+import { reviewStyles } from './styles/review.ts'
 import { formsStyles } from './styles/forms.ts'
 import { leafStyles } from './styles/leaf.ts'
 import { listStyles } from './styles/list.ts'
@@ -965,19 +966,6 @@ const depth = {
     padding: '0.1rem 0.1rem 0.1rem 0.5rem',
   },
   '[data-slot="copy-button"]': { padding: '0.2rem 0.55rem', fontSize: '0.75rem' },
-  '[data-slot="flow"]': { display: 'flex', alignItems: 'center', gap: '0.6rem', flexWrap: 'wrap' },
-  '[data-slot="flow-node"]': {
-    padding: '0.7rem 1rem',
-    borderRadius: 'var(--fl-radius)',
-    background: 'var(--card)',
-    boxShadow: 'var(--elev-raised)',
-    minWidth: '7rem',
-  },
-  '[data-slot="flow-node"][data-tone="success"]': { background: 'var(--ok-soft)' },
-  '[data-slot="flow-node"][data-tone="warning"]': { background: 'var(--warn-soft)' },
-  '[data-slot="flow-node"][data-tone="error"]': { background: 'var(--danger-soft)' },
-  '[data-slot="flow-title"]': { margin: 0, fontWeight: 550 },
-  '[data-slot="flow-arrow"]': { color: 'var(--muted-foreground)' },
   '[data-slot="page-header"]': {
     display: 'flex',
     justifyContent: 'space-between',
@@ -1888,6 +1876,6 @@ export const foldlab = definePreset({
   name: 'foldlab',
   globalCss: merge(
     merge(merge(merge(merge(base, depth), kit), polish), listStyles),
-    merge(formsStyles, leafStyles),
+    merge(merge(formsStyles, leafStyles), reviewStyles),
   ) as never,
 })

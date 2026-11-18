@@ -63,11 +63,7 @@ export const listPages: ReadonlyArray<Page> = [
                     s.arrow({}, [], []),
                   ],
                 ),
-                s.content(
-                  {},
-                  [],
-                  [s.viewport({}, [], [s.list({}, [], listItems(s, groupedEntries))])],
-                ),
+                s.content({}, [], [s.list({}, [], listItems(s, groupedEntries))]),
               ],
             ),
           ],
@@ -93,10 +89,7 @@ export const listPages: ReadonlyArray<Page> = [
                 c.content(
                   {},
                   [],
-                  [
-                    c.header({}, [], ['Regions']),
-                    c.viewport({}, [], [c.list({}, [], listItems(c, groupedEntries))]),
-                  ],
+                  [c.header({}, [], ['Regions']), c.list({}, [], listItems(c, groupedEntries))],
                 ),
               ],
             ),
@@ -112,7 +105,7 @@ export const listPages: ReadonlyArray<Page> = [
     title: 'Popup Parts',
     description: 'Arrow, viewport and shortcut slots, and the tabs indicator.',
     render: ({ h, model, ui }) => {
-      const p = Popover.parts(model.ui.pop, h, ui)
+      const p = Popover.parts(model.ui.popArrow, h, ui)
       const t = Tabs.parts(model.ui.tabs, h, ui)
       return [
         sectionOf(
@@ -123,10 +116,7 @@ export const listPages: ReadonlyArray<Page> = [
             p.content(
               {},
               [],
-              [
-                p.arrow({}, [], []),
-                p.viewport({}, [], [p.title({}, [], ['Arrow']), p.shortcut({}, [], ['Esc'])]),
-              ],
+              [p.arrow({}, [], []), p.title({}, [], ['Arrow']), p.shortcut({}, [], ['Esc'])],
             ),
           ],
           'p.content({}, [], [p.arrow({}, [], []), p.viewport({}, [], [...])])',

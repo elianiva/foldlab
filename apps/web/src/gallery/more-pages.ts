@@ -300,8 +300,8 @@ export const morePages: ReadonlyArray<Page> = [
     render: commandPage,
   },
   {
-    id: 'date-picker',
-    title: 'Date Picker',
+    id: 'calendar',
+    title: 'Calendar',
     description: 'A month grid. Arrow keys move by day, Page Up and Down by month.',
     render: calendarPage,
   },
@@ -357,27 +357,6 @@ export const morePages: ReadonlyArray<Page> = [
           ]),
         ],
         "E.sidebar(h, [{ name: 'Build', items: [{ label: 'Workers', href }] }])",
-      ),
-    ],
-  },
-  {
-    id: 'flow',
-    title: 'Flow',
-    description: 'Boxes joined by arrows.',
-    render: ({ h }) => [
-      sectionOf(
-        h,
-        'Basic',
-        [
-          E.flow(h, [
-            E.flowNode(h, { title: 'Request' }),
-            E.flowArrow(h),
-            E.flowNode(h, { title: 'Worker', tone: 'success' }),
-            E.flowArrow(h),
-            E.flowNode(h, { title: 'D1' }),
-          ]),
-        ],
-        "E.flow(h, [E.flowNode(h, { title: 'Request' }), E.flowArrow(h), ...])",
       ),
     ],
   },

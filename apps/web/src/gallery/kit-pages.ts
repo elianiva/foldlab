@@ -437,17 +437,19 @@ export const kitPages: ReadonlyArray<Page> = [
                 t.list(
                   {},
                   [],
-                  model.ui.toast.items.map((item) =>
-                    t.root(
-                      { id: item.id },
-                      [],
-                      [
-                        t.title({ id: item.id }, [], [item.title]),
-                        t.description({ id: item.id }, [], [item.description]),
-                        t.close({ id: item.id }, [], ['×']),
-                      ],
+                  [...model.ui.toast.items]
+                    .reverse()
+                    .map((item) =>
+                      t.root(
+                        { id: item.id },
+                        [],
+                        [
+                          t.title({ id: item.id }, [], [item.title]),
+                          t.description({ id: item.id }, [], [item.description]),
+                          t.close({ id: item.id }, [], ['×']),
+                        ],
+                      ),
                     ),
-                  ),
                 ),
               ],
             ),

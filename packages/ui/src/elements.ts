@@ -309,23 +309,6 @@ export const copyText = <M>(
     [h.code([], [props.text]), copyButton(h, props.copied, onCopy)],
   )
 
-/** A node in a flow diagram: a titled box. Connect them with `flowArrow`. */
-export const flowNode = <M>(
-  h: HtmlBuilder<M>,
-  props: Readonly<{ title: string; tone?: Tone }>,
-  children: Children = [],
-): Html =>
-  h.div(data(h, 'flow-node', { tone: props.tone }), [
-    h.p(data(h, 'flow-title'), [props.title]),
-    ...children,
-  ])
-
-export const flowArrow = <M>(h: HtmlBuilder<M>): Html =>
-  h.span([...data(h, 'flow-arrow'), h.AriaHidden(true)], ['\u2192'])
-
-export const flow = <M>(h: HtmlBuilder<M>, children: Children): Html =>
-  h.div(data(h, 'flow'), children)
-
 export const pageHeader = <M>(
   h: HtmlBuilder<M>,
   props: Readonly<{ title: string; description?: string }>,

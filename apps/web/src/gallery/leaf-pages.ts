@@ -94,43 +94,37 @@ const datePickerPage = ({ h, model, ui }: Ctx): ReadonlyArray<Html> => {
               {},
               [],
               [
-                d.viewport(
+                h.div(
+                  [h.Attribute('data-slot', 'date-picker-header')],
+                  [
+                    d.previous({}, [], ['\u2039']),
+                    d.heading({}, [], [`${monthNames[month - 1]} ${year}`]),
+                    d.next({}, [], ['\u203a']),
+                  ],
+                ),
+                d.grid(
                   {},
                   [],
                   [
-                    h.div(
-                      [h.Attribute('data-slot', 'date-picker-header')],
-                      [
-                        d.previous({}, [], ['\u2039']),
-                        d.heading({}, [], [`${monthNames[month - 1]} ${year}`]),
-                        d.next({}, [], ['\u203a']),
-                      ],
-                    ),
-                    d.grid(
+                    d.weekdays(
                       {},
                       [],
-                      [
-                        d.weekdays(
-                          {},
-                          [],
-                          weekdayNames.map((name, index) => d.weekday({ index }, [], [name])),
-                        ),
-                        ...DatePicker.weeksOf(state.month).map((week, index) =>
-                          d.week(
-                            { index },
-                            [],
-                            week.map((date) =>
-                              d.day({ value: date }, [], [String(Number(date.slice(8)))]),
-                            ),
-                          ),
-                        ),
-                      ],
+                      weekdayNames.map((name, index) => d.weekday({ index }, [], [name])),
                     ),
-                    h.div(
-                      [h.Attribute('data-slot', 'date-picker-presets')],
-                      presets.map(([label, value]) => d.preset({ value }, [], [label])),
+                    ...DatePicker.weeksOf(state.month).map((week, index) =>
+                      d.week(
+                        { index },
+                        [],
+                        week.map((date) =>
+                          d.day({ value: date }, [], [String(Number(date.slice(8)))]),
+                        ),
+                      ),
                     ),
                   ],
+                ),
+                h.div(
+                  [h.Attribute('data-slot', 'date-picker-presets')],
+                  presets.map(([label, value]) => d.preset({ value }, [], [label])),
                 ),
               ],
             ),

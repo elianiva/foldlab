@@ -95,6 +95,7 @@ export const kit = Ui.define({
   slider: Slider.component,
   tip: Tooltip.component,
   pop: Popover.component,
+  popArrow: Popover.component,
   menu: Menu.component,
   region: Select.component,
   auto: Autocomplete.component,
@@ -337,6 +338,7 @@ export const init = (flags: Flags, url: Url.Url) => ({
       slider: Slider.init({ key: 'slider', value: [40] }),
       tip: Tooltip.init({ key: 'tip' }),
       pop: Popover.init({ key: 'pop' }),
+      popArrow: Popover.init({ key: 'pop-arrow' }),
       menu: Menu.init({ key: 'menu' }),
       auto: Autocomplete.init({
         key: 'auto',
